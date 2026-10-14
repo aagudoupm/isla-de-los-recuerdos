@@ -3611,6 +3611,10 @@ function refreshBattle(){
   const sp = spOf(f.id); const a = document.createElement('span'); a.className = 'tag t-' + sp.type; a.textContent = TYPE_LABEL[sp.type]; t.appendChild(a);
   const b = document.createElement('span'); b.className = 'tag s-' + sp.fav; b.textContent = SUBJECTS[sp.fav]; t.appendChild(b);
 }
+function bmsgTap(text){
+  const el = $('bmsg'); el.textContent = text + '  ▼ Toca para seguir';
+  return new Promise(res => { const p = $('bpanel'); const f = () => { p.removeEventListener('pointerdown', f); res(); }; setTimeout(() => p.addEventListener('pointerdown', f), 350); });
+}
 function bmsg(text, ms){
   const el = $('bmsg'); el.textContent = text;
   return new Promise(res => { let done = false; const p = $('bpanel'); const f = () => { if (done) return; done = true; p.removeEventListener('pointerdown', f); res(); }; p.addEventListener('pointerdown', f); setTimeout(f, ms || 1300); });
@@ -3794,7 +3798,15 @@ function renderStart(){
     const go = () => { ensureIsland(G.isl || 0); const p = G.pos || W.spawn; const ok = isWalk(p.x, p.y) && !ENT_MAP.has(idx(p.x, p.y)); placePlayer(ok ? p.x : W.spawn.x, ok ? p.y : W.spawn.y); enterWorld(false); };
     if (!G.course) showCourse(c => { G.course = c; go(); }); else go();
   });
-  stBtn(sv ? 'Nueva partida' : 'Jugar', () => showStory(showAvatars), !!sv);
+  stBtn(sv ? 'Nueva partida' : 'Jugar', sv ? confirmNew : () => showStory(showAvatars), !!sv);
+}
+function confirmNew(){
+  const box = $('stBtns'); box.innerHTML = '';
+  const w = el('p', 'hint', '⚠️ ¿Seguro que quieres empezar una nueva partida? Se borrarán todos los datos anteriores: duendes, pueblos recuperados, pétalos y progreso. No se puede deshacer.');
+  w.style.cssText = 'max-width:34em;margin:0 0 .6em;color:#ffd23f;font-weight:700';
+  box.append(w);
+  stBtn('Sí, borrar y empezar de nuevo', () => { wipeSave(); showStory(showAvatars); });
+  stBtn('No, volver', renderStart, true);
 }
 let chosenAvatar = 0;
 function showAvatars(){
@@ -4486,7 +4498,7 @@ async function tutBattle(kind){
   const L = kind === 'friend' ? ['Así se hace amigos: cada duende te pregunta de su asignatura favorita, y siempre hay que responderle. Cada acierto aumenta la confianza (arriba, «Reto»).', `Tienes corazones ♥: si fallas, pierdes uno. Si se acaban, el duende se asusta, ¡pero puedes volver a intentarlo!`, 'Las preguntas que falles volverán a salir más adelante para que las repases.']
     : kind === 'guardian' ? ['Un guardián tiene varios duendes apagados. Anímalos a todos con tus respuestas y el color volverá al pueblo.', 'Cada duende pregunta de su asignatura favorita. ¡Tú puedes!']
     : kind === 'help' ? ['Este vecino necesita ayuda. Anima a su duende respondiendo preguntas, igual que con los salvajes.'] : null;
-  if (!L) return; for (const t of L) await bmsg(t, 2800);
+  if (!L) return; for (const t of L) await bmsgTap(t);
 }
 setInterval(() => {
   if (!G || screen !== 'world' || mode !== 'world' || P.moving || lockOn) return; G.tut = G.tut || {};
