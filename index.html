@@ -48,6 +48,9 @@ button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
 
 /* diálogo */
 #dlg{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(780px,92%);background:rgba(18,16,40,.95);border:3px solid var(--edge);border-radius:14px;padding:10px 16px 18px;min-height:4.6em;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+#pick{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;width:min(560px,92%);max-height:88%;overflow:auto;background:rgba(18,16,40,.97);border:3px solid var(--edge);border-radius:14px;padding:10px 14px 14px;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+#pickT{font-weight:700;color:var(--sun);font-size:1.02em;line-height:1.3;margin-bottom:8px}
+#pickB{display:grid;gap:8px}#pickB.cols{grid-template-columns:1fr 1fr}
 #dlgWho{font-weight:700;color:var(--sun);font-size:.95em;margin-bottom:2px}
 #dlgTxt{font-size:1.12em;line-height:1.35;min-height:2.7em}
 #dlgMore{position:absolute;right:14px;bottom:4px;color:var(--sun);font-size:.8em;animation:blink 1s steps(2) infinite}
@@ -192,6 +195,7 @@ html.prot #game{position:fixed;left:0;top:0;transform-origin:0 0;touch-action:no
   <button id="goal" class="hudchip" hidden><b id="goalTxt"></b><span id="goalSub"></span></button>
   <div id="goalArrow" hidden><i>➤</i><b></b></div>
   <div id="banner"><b id="banName"></b><span id="banInfo"></span></div>
+  <div id="pick" hidden><div id="pickT"></div><div id="pickB"></div></div>
   <div id="dlg" hidden><div id="dlgWho"></div><div id="dlgTxt"></div><span id="dlgMore">▼</span></div>
 
   <div id="start" hidden>
@@ -2033,7 +2037,7 @@ function generateWorld(seed, isl){
       for (const dx of [-1, 0, 1, 3]) put(b.x + dx, b.y + 3, OB.FENCE);
       put(b.x + 3, b.y + 2, OB.BARREL); put(b.x - 1, b.y + 2, b.id % 2 ? OB.CRATE : OB.BARREL);
     });
-    put(t.x - 3, t.y - 5, OB.BED); put(t.x + 3, t.y - 5, OB.BED); put(t.x - 4, t.y - 3, OB.BENCH); put(t.x + 4, t.y + 3, OB.BENCH); put(t.x - 8, t.y + 7, OB.WELL); put(t.x + 4, t.y - 1, OB.STALL); put(t.x - 4, t.y + 1, OB.STALL); put(t.x - 7, t.y - 2, OB.CAMPFIRE); put(t.x + 7, t.y + 8, OB.BARREL); put(t.x + 8, t.y + 8, OB.CRATE);
+    put(t.x - 3, t.y - 5, OB.BED); put(t.x + 3, t.y - 5, OB.BED); put(t.x - 4, t.y - 3, OB.BENCH); put(t.x + 4, t.y + 3, OB.BENCH); put(t.x - 8, t.y + 7, OB.WELL); put(t.x + 4, t.y - 1, OB.STALL); put(t.x - 4, t.y + 1, OB.STALL); put(t.x - 7, t.y - 2, OB.CAMPFIRE); put(t.x + 2, t.y + 3, OB.SIGN); put(t.x + 7, t.y + 8, OB.BARREL); put(t.x + 8, t.y + 8, OB.CRATE);
     for (const [lx, ly] of [[-5, -4], [5, -4], [-5, 4], [5, 4]]) obj[idx(t.x + lx, t.y + ly)] = OB.LAMP;
     T.plaza = {x:t.x, y:t.y + 3};
     towns.push(T);
@@ -2151,6 +2155,18 @@ function generateWorld(seed, isl){
       team:IS.champ.team, pre:IS.champ.pre, post:IS.champ.post};
       trainers.push(T.champion); } }
   const spawn = {x:CENTER.x + 1, y:CENTER.y + 3};
+  // 8) carteles junto a los caminos (orientan al explorador)
+  roads.forEach(rd => {
+    const p = rd.path, A = towns[rd.a], Bt = towns[rd.b];
+    for (const f of [.3, .7]){
+      const j = Math.max(2, Math.min(p.length - 3, Math.floor(p.length * f))), [x, y] = p[j];
+      if (Math.hypot(x - A.cx, y - A.cy) < 16 || Math.hypot(x - Bt.cx, y - Bt.cy) < 16) continue;
+      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){
+        const xx = x + ox, yy = y + oy; if (!inb(xx, yy)) continue; const i = idx(xx, yy), bs = base[i];
+        if (bs >= B.GRASS && bs !== B.PATH && bs !== B.CLIFF && bs !== B.COBBLE && bs !== B.BRIDGE && !obj[i] && !trainers.concat(npcs).some(e => Math.hypot(e.x - xx, e.y - yy) < 2)){ obj[i] = OB.SIGN; break; }
+      }
+    }
+  });
   return {seed, base, obj, biome, bidx, towns, buildings, trainers, npcs, roads, spawn, nooks};
 }
 const TYPE_LINE = {
@@ -2985,6 +3001,7 @@ function drawWorld(t){
   for (let y = y0 - 2; y <= y1 + 3; y++) for (let x = x0 - 3; x <= x1 + 3; x++){
     const o = ot(x, y); if (!o) continue;
     const px = x * TS - camX, py = y * TS - camY, h = hash2(x, y, 5), sw = Math.sin(t / 900 + x * 1.7 + y * .9) * .22, bb = bt(x, y);
+    if (o === OB.WELL || o === OB.CAMPFIRE) dailyMark(items, o, x, y, px, py, t);
     switch (o){
       case OB.FLOWER: if (!winter){ const v = (x * 5 + y * 3) % 3, nm = v === 0 ? 'flowers' : v === 1 ? 'flowers_b' : 'flowers_c'; putHD(items, null, nm, y + .9, px, py, {sc:.62, dx:(h - .5) * 3, dy:(hash2(x, y, 6) - .5) * 3}); } break;
       case OB.MUSH: putHD(items, shs, 'mushroom_red', y + 1, px, py, {sc:.5, shw:.3}); break;
@@ -3030,6 +3047,7 @@ function drawWorld(t){
     shs.push([bx + hi.lw / 2, b.y * TS - camY + b.h * TS - 1, hi.lw * .46, hi.lw * .09]);
     items.push([b.y + b.h, hi, bx, by, hi.lw, hi.lh, 1]);
     houseDeco(items, b, t, camX, camY, hi);
+    houseMark(items, b, bx, by, hi, t);
     if (b.kind !== 'centro' && (b.style % 4 === 0 || b.style % 4 === 3)){
       for (let k = 0; k < 4; k++){ const ph = ((t / 1500) + k * .25) % 1; const sx = bx + hi.lw * .18 + Math.sin(ph * 6 + k) * 1.2 + ph * 3, sy = by + hi.lh * .04 - ph * 11, r = .8 + ph * 1.5;
         ent(b.y + b.h + .5, g2 => { g2.fillStyle = 'rgba(248,248,255,' + (.6 * (1 - ph)).toFixed(2) + ')'; g2.beginPath(); g2.arc(sx, sy, r, 0, 7); g2.fill(); }); }
@@ -3291,7 +3309,7 @@ function handleTap(e, first){
     }
     const b = buildingAt(tx, ty);
     if (b){ goTo(b.door.x, b.door.y, {t:'door', b}); return; }
-    const oo = ot(tx, ty); if (BARRIER_TYPE[oo] || oo === OB.CHEST || oo === OB.CHESTO){ goTo(tx, ty, {t:'obj', x:tx, y:ty}); return; }
+    const oo = ot(tx, ty); if (BARRIER_TYPE[oo] || oo === OB.CHEST || oo === OB.CHESTO || PLACE_OB[oo]){ goTo(tx, ty, {t:'obj', x:tx, y:ty}); return; }
   }
   goTo(tx, ty, null, !first);
 }
@@ -3345,13 +3363,9 @@ async function doIntent(it){
       P.dir = dirOf(it.x - P.x, it.y - P.y); await interactObj(it.x, it.y);
     } else if (it.t === 'door'){
       const b = it.b; P.dir = 'up';
-      if (b.kind === 'centro') await healAtCentro(b); else await sayAsync(HOUSE_LINES[b.id % 4], 'Puerta');
+      if (b.kind === 'centro') await healAtCentro(b); else await houseTalk(b);
     }
   });
-}
-async function healAtCentro(b){
-  await fade(true); G.visited[b.town] = true; save(); beep(660, .12); setTimeout(() => beep(990, .2), 130); await fade(false);
-  await sayAsync(['¡Bienvenido a la Posada de los Duendes!', 'Aquí puedes descansar un momento.', 'Partida guardada.'], 'Posadera');
 }
 async function trainerTalk(e){
   if (e.champion && badgeCount() < 6 && !G.defeated[e.id]){ await sayAsync(['Soy el Gran Sabio Cronos. Vigilo la isla desde que llegó el Gran Olvido.', `Aún quedan regiones grises (${badgeCount()}/6 restauradas). Ayuda a los seis guardianes de los pueblos y vuelve a verme.`], e.name); return; }
@@ -3387,6 +3401,7 @@ async function afterBattle(res, trainer){
 }
 async function interactObj(x, y){
   const i = idx(x, y), o = W.obj[i];
+  if (PLACE_OB[o]){ await placeObj(o, x, y); return; }
   if (BARRIER_TYPE[o]){
     const need = BARRIER_TYPE[o], mate = teamList().find(c => spOf(c.id).type === need);
     if (!mate){ await sayAsync([BARRIER_TEXT[o][0], `Necesitas un duende con el poder «${TYPE_LABEL[need]}» entre tus compañeros para pasar. Míralo en el menú, en la pestaña Amigos.`]); return; }
@@ -4546,6 +4561,7 @@ const champTown = () => W.towns.find(t => t.champion);
 const friendsNeed = ti => Math.min(6, ti);
 function goalNow(){
   if (!G || !W) return null;
+  const er = typeof errandGoal === 'function' && errandGoal(); if (er) return er;
   const owned = G.owned.length, gts = guardTowns(), next = gts.find(t => !G.restored[t.id]);
   if (owned === 0){ const t = nearestTall(); return {key:'first', icon:'🌿', text:'Hazte amigo de un duende', sub:'Camina por la hierba alta, fuera del pueblo, y responde a sus preguntas.', tx:t ? t[0] : null, ty:t ? t[1] : null}; }
   if (next){
@@ -4590,6 +4606,180 @@ setInterval(refreshGoal, 700);
   } else a.hidden = true;
   requestAnimationFrame(arrowLoop);
 })();
+
+'use strict';
+/* ===== Lugares con vida: carteles, pozos, hogueras, Posada y encargos de los vecinos ===== */
+const PLACE_OB = {}; PLACE_OB[OB.SIGN] = 1; PLACE_OB[OB.WELL] = 1; PLACE_OB[OB.CAMPFIRE] = 1;
+const ENC_CAP = 8;     // encargos con premio por día
+function dailyG(){ if (!G) return {d:'', got:{}, done:{}, enc:0, act:null}; const k = dayStr(); if (!G.daily || G.daily.d !== k) G.daily = {d:k, got:{}, done:{}, enc:0, act:null}; return G.daily; }
+const pkey = (x, y) => (G.isl || 0) + ':' + x + ',' + y;
+function compass(dx, dy){ const a = Math.atan2(dx, -dy) * 180 / Math.PI, n = ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste']; return n[((Math.round(a / 45) % 8) + 8) % 8]; }
+
+/* ---------- ventana de opciones en el mundo ---------- */
+function pickAsync(title, opts){
+  return new Promise(res => {
+    const box = $('pick'), body = $('pickB'); $('pickT').textContent = title; body.innerHTML = ''; body.classList.toggle('cols', opts.length > 4);
+    const prev = mode; mode = 'pick'; P.path = []; P.intent = null;
+    opts.forEach(o => {
+      const b = document.createElement('button'); b.className = 'act ' + (o.cls || ''); b.textContent = o.label; if (o.disabled) b.disabled = true;
+      b.addEventListener('click', () => { box.hidden = true; mode = prev; res(o.value); }); body.appendChild(b);
+    });
+    box.hidden = false; box.scrollTop = 0;
+  });
+}
+
+/* ---------- carteles ---------- */
+function nearestTown(){ let best = null, bd = 1e9; for (const T of W.towns){ const d = Math.hypot(T.cx - P.x, T.cy - P.y); if (d < bd){ bd = d; best = T; } } return best ? {T:best, d:bd} : null; }
+function hintLines(withTown){
+  const g = goalNow(), L = [];
+  if (!g){ L.push('Sigue explorando la isla. ¡Cada rincón guarda sorpresas!'); }
+  else {
+    L.push(`${g.icon} ${g.text}`, g.sub);
+    if (g.tx != null){ const n = Math.round(Math.hypot(g.tx - P.x, g.ty - P.y)); L.push(n < 6 ? '¡Ya estás muy cerca!' : `Desde aquí queda hacia el ${compass(g.tx - P.x, g.ty - P.y)}, a unos ${n} pasos. Si no lo ves en la pantalla, sigue la flecha dorada del borde.`); }
+  }
+  if (withTown){ const nt = nearestTown(); if (nt && nt.d > 14) L.push(`El pueblo más cercano es ${nt.T.name}: hacia el ${compass(nt.T.cx - P.x, nt.T.cy - P.y)}, a unos ${Math.round(nt.d)} pasos.`); }
+  return L;
+}
+
+/* ---------- pozo y hoguera: premio una vez al día ---------- */
+const CAMP_FACTS = {
+  mates:['Un número es par si acaba en 0, 2, 4, 6 u 8. ¡Los demás son impares!', 'Un triángulo siempre tiene tres lados, y sus tres ángulos suman 180 grados.', 'Para multiplicar un número por 10 solo tienes que añadirle un cero al final.', 'Un cuadrado tiene cuatro lados iguales y cuatro ángulos rectos.'],
+  lengua:['Las palabras esdrújulas, como «pájaro» o «música», siempre llevan tilde.', 'El verbo es la palabra que nos dice qué hace alguien: correr, saltar, soñar…', 'Los sinónimos son palabras distintas que significan casi lo mismo: «grande» y «enorme».', 'Antes de «p» y «b» siempre se escribe «m»: «campo», «también».'],
+  ciencias:['Las plantas fabrican su alimento con la luz del sol. Se llama fotosíntesis.', 'El agua puede ser líquida, sólida (hielo) o gas (vapor).', 'La Luna tarda casi un mes en dar una vuelta completa alrededor de la Tierra.', 'El corazón es un músculo que bombea la sangre por todo el cuerpo.'],
+  ingles:['«Hello» significa «hola» y «goodbye» significa «adiós».', '«Red» es rojo, «blue» es azul y «green» es verde.', '«Thank you» significa «gracias» y «please» significa «por favor».', 'En inglés, «one, two, three» son «uno, dos, tres».']
+};
+async function placeObj(o, x, y){
+  if (o === OB.SIGN){ await sayAsync(['📌 Cartel del camino'].concat(hintLines(true)), 'Cartel'); return; }
+  const d = dailyG(), k = (o === OB.WELL ? 'w' : 'f') + pkey(x, y);
+  if (o === OB.WELL){
+    if (d.got[k]){ await sayAsync(['El pozo está en calma. 💧', 'Los deseos solo se cumplen una vez al día. ¡Vuelve mañana!']); return; }
+    d.got[k] = 1; const food = hashStr(d.d + k) % 10 < 3, isl = G.isl || 0;
+    if (food) G.food = (G.food || 0) + 4 + 2 * isl; else G.petals = (G.petals || 0) + 2;
+    save(); beep(660, .1); setTimeout(() => beep(990, .12), 110); setTimeout(() => beep(1480, .16), 220);
+    await sayAsync(['Te asomas al pozo y pides un deseo…', 'Una luz azul sube desde el fondo.', food ? `¡Aparecen ${4 + 2 * isl} frutos 🍎 flotando en el agua!` : '¡Del agua brotan 2 Pétalos de Color! 🌸', 'Vuelve mañana: el pozo concede un deseo al día.']); return;
+  }
+  const team = teamList();
+  if (!team.length){ await sayAsync(['La hoguera crepita y el calorcito da sueño. 🔥', 'Cuando tengas un duende amigo, se sentará contigo y te contará historias junto al fuego.']); return; }
+  if (d.got[k]){ await sayAsync(['Las brasas siguen calientes, pero hoy ya has escuchado la historia de esta hoguera.', 'Prueba con otra o vuelve mañana: siempre hay una historia nueva.']); return; }
+  d.got[k] = 1;
+  const c = team[hashStr(d.d + k) % team.length], sp = spOf(c.id), act = activeSubj(), sj = act.includes(sp.fav) ? sp.fav : act[hashStr(d.d + k + 's') % act.length];
+  const facts = CAMP_FACTS[sj], fact = facts[hashStr(d.d + k + 'f') % facts.length], xp = 14 + 4 * (G.isl || 0), ups = [];
+  team.forEach(m => gainXp(m, xp).forEach(l => ups.push(`${spOf(m.id).name} sube al nivel ${l}`)));
+  save(); beep(520, .1); setTimeout(() => beep(780, .12), 120);
+  await sayAsync([`Te sientas junto al fuego. ${sp.name} se acomoda a tu lado.`, `${sp.name} cuenta de ${SUBJECTS[sj]}: «${fact}»`, `Tu grupo descansa y gana ✨ ${xp} de experiencia.` + (ups.length ? ' ' + ups.join('. ') + '.' : '')]);
+}
+/* destello sobre pozos y hogueras que aún tienen premio hoy */
+function dailyMark(items, o, x, y, px, py, t){
+  if (!G) return; const d = dailyG(); if (d.got[(o === OB.WELL ? 'w' : 'f') + pkey(x, y)]) return;
+  if (o === OB.CAMPFIRE && !teamList().length) return;
+  const bob = Math.sin(t / 380 + x) * 1.4;
+  items.push([y + 1.02, null, {fn:g => { const cx = px + 8, cy = py - 3 + bob; g.fillStyle = '#fff3a0'; g.beginPath(); g.moveTo(cx, cy - 3.4); g.lineTo(cx + 1, cy - 1); g.lineTo(cx + 3.4, cy); g.lineTo(cx + 1, cy + 1); g.lineTo(cx, cy + 3.4); g.lineTo(cx - 1, cy + 1); g.lineTo(cx - 3.4, cy); g.lineTo(cx - 1, cy - 1); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,230,120,.28)'; g.beginPath(); g.arc(cx, cy, 5.5, 0, 7); g.fill(); }}]);
+}
+
+/* ---------- Posada: pista, viaje y recogida ---------- */
+async function healAtCentro(b){
+  await fade(true); G.visited[b.town] = true; save(); beep(660, .12); setTimeout(() => beep(990, .2), 130); await fade(false);
+  await sayAsync(['¡Bienvenido a la Posada de los Duendes!', 'Aquí puedes descansar, preguntar el camino o salir de viaje a otro pueblo.'], 'Posadera');
+  for (;;){
+    const opts = [{label:'🧭 ¿Qué hago ahora?', value:'hint'}], here = b.town;
+    const dests = W.towns.filter(T => G.visited[T.id] && T.id !== here);
+    if (dests.length) opts.push({label:'🚀 Viajar a otro pueblo', value:'travel'});
+    let tf = 0, tx = 0; ecoList().forEach(e => { const p = ecoPending(e); tf += p.food; tx += p.xp; });
+    if (tf + tx > 0) opts.push({label:`🍎 Recoger ${tf} frutos y ✨ ${tx} de experiencia`, value:'collect', cls:'ok'});
+    opts.push({label:'👋 Hasta luego', value:'bye', cls:'ghost'});
+    const v = await pickAsync('Posadera: ¿qué necesitas?', opts);
+    if (v === 'hint'){ await sayAsync(hintLines(true), 'Posadera'); }
+    else if (v === 'collect'){ const r = collectAll(); beep(880, .1); setTimeout(() => beep(1320, .15), 100); await sayAsync([`¡Recogido! 🍎 ${r.food} frutos y ✨ ${r.xp} de experiencia para cada duende del grupo.`].concat(r.ups.length ? [r.ups.join('. ') + '.'] : []), 'Posadera'); }
+    else if (v === 'travel'){
+      const dopts = dests.map(T => ({label:`📍 ${T.name}${G.restored[T.id] ? ' ✓' : ''}`, value:T.id})); dopts.push({label:'← Volver', value:-1, cls:'ghost'});
+      const id = await pickAsync('¿A qué pueblo quieres ir?', dopts);
+      if (id >= 0){ await sayAsync('¡Buen viaje! Que los duendes te guíen.', 'Posadera'); await travelTo(W.towns.find(T => T.id === id)); return; }
+    } else return;
+  }
+}
+
+/* ---------- casas: encargos de los vecinos ---------- */
+const RESIDENTS = ['Doña Rosa', 'Don Mateo', 'Abuela Pilar', 'Señor Hugo', 'Tía Marga', 'Don Anselmo', 'Lucía', 'Pablo el panadero', 'Señora Julia', 'Marcos', 'Carmen la costurera', 'Don Ramiro'];
+const hk = b => (G.isl || 0) + ':' + b.id;
+const resName = b => RESIDENTS[hashStr('r' + hk(b)) % RESIDENTS.length];
+const anyProducer = () => ecoList().length > 0;
+function houseQuest(b){
+  const key = hk(b), h = hashStr(dayStr() + '|' + key), types = ['acertijo', 'carta']; if (anyProducer()) types.push('frutas');
+  const act = activeSubj();
+  return {key, name:resName(b), type:types[h % types.length], subj:act[Math.floor(h / 8) % act.length], n:5 + 4 * (G.isl || 0)};
+}
+function houseState(b){
+  if (!G || b.kind === 'centro') return null; const d = dailyG(), key = hk(b);
+  if (d.act && d.act.to === key) return 'deliver';
+  if (d.done[key] || (d.act && d.act.from === key)) return null;
+  return 'quest';
+}
+function houseMark(items, b, bx, by, hi, t){
+  const st = houseState(b); if (!st) return;
+  const cx = bx + hi.lw / 2 + (b.w > 3 ? 0 : 0), cy = by - 3 + Math.sin(t / 330 + b.id) * 1.6;
+  items.push([b.y + b.h + 1.02, null, {fn:g => {
+    g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(cx, cy + 6.4, 3.4, 1, 0, 0, 7); g.fill();
+    g.fillStyle = st === 'deliver' ? '#7fd6ff' : '#ffd23f'; g.strokeStyle = '#3a2412'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, 4.6, 0, 7); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(cx - 1.6, cy + 4); g.lineTo(cx, cy + 6.4); g.lineTo(cx + 1.6, cy + 4); g.fill();
+    g.fillStyle = '#3a2412';
+    if (st === 'quest'){ g.fillRect(cx - .7, cy - 2.6, 1.4, 3.3); g.fillRect(cx - .7, cy + 1.5, 1.4, 1.3); }
+    else { g.fillRect(cx - 2.6, cy - 1.6, 5.2, 3.4); g.strokeStyle = '#7fd6ff'; g.lineWidth = .7; g.beginPath(); g.moveTo(cx - 2.6, cy - 1.6); g.lineTo(cx, cy + .5); g.lineTo(cx + 2.6, cy - 1.6); g.stroke(); }
+  }}]);
+}
+function errandGoal(){
+  if (!G || !W) return null; const d = dailyG(), a = d.act; if (!a || a.isl !== (G.isl || 0)) return null;
+  const to = W.buildings.find(x => x.id === a.toId); if (!to) return null;
+  return {key:'errand', icon:'✉️', text:`Entrega la carta a ${a.toName}`, sub:`Vive en la casa del ${compass(to.x - P.x, to.y - P.y)}, con un sobre azul sobre la puerta.`, tx:to.door.x, ty:to.door.y};
+}
+function giveReward(petals, xp){
+  const d = dailyG(); if (d.enc >= ENC_CAP) return null; d.enc++;
+  G.petals = (G.petals || 0) + petals; const ups = [];
+  if (xp) teamList().forEach(m => gainXp(m, xp).forEach(l => ups.push(`${spOf(m.id).name} sube al nivel ${l}`)));
+  save(); beep(880, .1); setTimeout(() => beep(1320, .14), 110); return ups;
+}
+const capLine = 'Hoy ya has ayudado a muchísimos vecinos, ¡y te lo agradecen de corazón! Mañana habrá premios nuevos.';
+async function houseTalk(b){
+  const d = dailyG(), q = houseQuest(b), key = q.key, who = q.name;
+  P.dir = 'up';
+  if (d.act && d.act.to === key){      // entrega de la carta
+    const a = d.act; d.act = null; d.done[a.from] = 1;
+    const r = giveReward(3, 8);
+    await sayAsync([`${who} abre la puerta.`, `«¡Una carta de ${a.fromName}! Muchísimas gracias por traérmela.»`, r ? '¡Te regala 3 Pétalos de Color! 🌸' + (r.length ? ' ' + r.join('. ') + '.' : ' Y tus duendes ganan algo de experiencia.') : capLine], who); return;
+  }
+  if (d.done[key]){ await sayAsync([`«¡Gracias otra vez por tu ayuda!»`, 'Hoy no necesito nada más. Vuelve mañana: seguro que tengo otro encargo.'], who); return; }
+  if (d.act && d.act.from === key){
+    const to = W.buildings.find(x => x.id === d.act.toId);
+    await sayAsync([`«Recuerda: la carta es para ${d.act.toName}.»`, to ? `Vive en la casa del ${compass(to.x - b.x, to.y - b.y)}, a unos ${Math.round(Math.hypot(to.x - b.x, to.y - b.y))} pasos.` : ''].filter(Boolean), who); return;
+  }
+  if (q.type === 'carta'){
+    if (d.act){ await sayAsync([`«¡Hola! Quería pedirte un recado…»`, 'Pero ya llevas una carta. Primero entrégala y luego vuelve a verme.'], who); return; }
+    const others = W.buildings.filter(x => x.kind === 'house' && x.town === b.town && x.id !== b.id);
+    if (!others.length){ await sayAsync(HOUSE_LINES[b.id % 4], who); return; }
+    const to = others[hashStr(d.d + key) % others.length], toName = resName(to);
+    await sayAsync([`«¡Hola, explorador! Tengo una carta para ${toName}, pero me duelen los pies.»`, `Vive en la casa del ${compass(to.x - b.x, to.y - b.y)}, a unos ${Math.round(Math.hypot(to.x - b.x, to.y - b.y))} pasos de aquí.`], who);
+    const v = await pickAsync('¿Llevas la carta?', [{label:'✉️ ¡Claro, yo la llevo!', value:1, cls:'ok'}, {label:'Ahora no', value:0, cls:'ghost'}]);
+    if (!v){ await sayAsync('«No pasa nada. Aquí estaré.»', who); return; }
+    d.act = {from:key, fromName:who, to:hk(to), toId:to.id, toName, isl:G.isl || 0}; save();
+    await sayAsync([`«¡Mil gracias! Dásela a ${toName}.»`, 'Sobre su puerta verás un cartel azul con un sobre. Y la flecha dorada te guiará.'], who); return;
+  }
+  if (q.type === 'frutas'){
+    await sayAsync([`«¡Hola! Estoy preparando una mermelada enorme y me faltan frutas.»`, `«¿Me das ${q.n} frutos 🍎? Te los agradeceré con pétalos.»`, `Ahora llevas ${G.food || 0} frutos.`], who);
+    const have = (G.food || 0) >= q.n;
+    const v = await pickAsync(`Dar ${q.n} frutos 🍎 a ${who}`, [{label:have ? `🍎 Dar ${q.n} frutos` : `🍎 Dar ${q.n} frutos (te faltan ${q.n - (G.food || 0)})`, value:1, cls:have ? 'ok' : 'ghost', disabled:!have}, {label:'Ahora no', value:0, cls:'ghost'}]);
+    if (!v){ await sayAsync(have ? '«Vale, aquí seguiré. ¡Vuelve cuando quieras!»' : '«No te preocupes. Los pueblos que recuperan el color regalan frutos; recógelos en la Posada.»', who); return; }
+    G.food -= q.n; d.done[key] = 1; const r = giveReward(4, 10);
+    await sayAsync([`«¡Qué frutas tan ricas! Voy a preparar la mermelada.»`, r ? '¡Te regala 4 Pétalos de Color! 🌸' + (r.length ? ' ' + r.join('. ') + '.' : ' Y tus duendes ganan experiencia.') : capLine], who); return;
+  }
+  // acertijo
+  const sj = q.subj, lvl = 3 + 5 * (G.isl || 0) + (b.town | 0);
+  await sayAsync([`«¡Hola! Estaba pensando en un acertijo de ${SUBJECTS[sj]}…»`, '«¿Te atreves a resolverlo?»'], who);
+  const v0 = await pickAsync(`${who} te propone un acertijo de ${SUBJECTS[sj]}`, [{label:'🧩 ¡Me atrevo!', value:1, cls:'ok'}, {label:'Ahora no', value:0, cls:'ghost'}]);
+  if (!v0){ await sayAsync('«Vuelve cuando te apetezca.»', who); return; }
+  const qq = buildQ(sj, lvl), v = await pickAsync(`${SUBJECTS[sj]}: ${qq.q}`, qq.options.map((t, i) => ({label:t, value:i, cls:sj})));
+  const ok = v === qq.answer; recordAnswer(qq, ok); d.done[key] = 1;
+  if (ok){ const r = giveReward(3, 8); await sayAsync([`«¡Correcto! Eres muy listo.»`, r ? '¡Te regala 3 Pétalos de Color! 🌸' + (r.length ? ' ' + r.join('. ') + '.' : ' Y tus duendes ganan experiencia.') : capLine], who); }
+  else { save(); beep(160, .25); await sayAsync([`«Casi… la respuesta era: ${qq.correct}.»`, '«No pasa nada, así se aprende. Mañana tendré otro acertijo.»'], who); }
+}
 
 </script>
 
