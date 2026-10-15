@@ -4729,7 +4729,7 @@ function dailyMark(items, o, x, y, px, py, t){
 
 /* ---------- Posada: pista, viaje y recogida ---------- */
 async function healAtCentro(b){
-  await fade(true); G.visited[b.town] = true; save(); beep(660, .12); setTimeout(() => beep(990, .2), 130); await fade(false);
+  G.visited[b.town] = true; save(); beep(660, .12); setTimeout(() => beep(990, .2), 130);
   { const d = dailyG(), a = d.act;
     if (a && a.to === hk(b)){ d.act = null; d.done[a.from] = 1; const r = giveReward(3, 8);
       await sayAsync([`«¡Una carta de ${a.fromName}! Muchísimas gracias por traérmela.»`, r ? '¡Te regala 3 Pétalos de Color! 🌸' + (r.length ? ' ' + r.join('. ') + '.' : ' Y tus duendes ganan algo de experiencia.') : capLine], 'Posadera'); } }
