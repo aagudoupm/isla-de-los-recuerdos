@@ -40,11 +40,12 @@ button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
 #mini{pointer-events:auto;width:clamp(84px,25vmin,130px);aspect-ratio:1;image-rendering:auto;border:2px solid rgba(167,159,216,.85);border-radius:10px;background:#0a0918;box-shadow:0 2px 0 rgba(0,0,0,.45)}
 #zone b{display:block;font-size:1.05em;color:var(--sun)}
 #menuIcon{pointer-events:auto;width:46px;height:46px;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);font-size:22px;line-height:1;display:grid;place-items:center;color:var(--text)}
-#dock{position:absolute;right:max(10px,env(safe-area-inset-right));top:66px;display:flex;flex-direction:column;gap:5px;z-index:4;pointer-events:none}
+#dock{position:absolute;right:5px;top:66px;display:flex;flex-direction:column;gap:5px;z-index:4;pointer-events:none}
 #dock button{pointer-events:auto;width:46px;height:42px;padding:0;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);color:var(--text);font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;cursor:pointer}
 #dock button i{font-style:normal;font-size:17px;line-height:1}
 #dock button span{font-size:.46em;line-height:1.1;opacity:.95;white-space:nowrap}
 #dock button:active{background:rgba(42,38,104,.9)}
+#menuIcon{margin-right:calc(5px - max(10px,env(safe-area-inset-right)))}
 #menuIcon:active{background:rgba(42,38,104,.9)}
 #banner{position:absolute;top:16%;left:50%;transform:translate(-50%,-10px);opacity:0;transition:opacity .45s,transform .45s;pointer-events:none;text-align:center;padding:10px 22px;background:rgba(13,12,27,.82);border:3px solid var(--sun);border-radius:12px;max-width:90%}
 #banner.show{opacity:1;transform:translate(-50%,0)}
