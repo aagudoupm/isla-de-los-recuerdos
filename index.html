@@ -2906,7 +2906,7 @@ function paintChunk(cx, cy){
     if (b === B.GRASS || b === B.TALL || b === B.FOREST){
       const wt = tgw(X + .5, Y + .5), tgp = wt > 0 ? TT.pal[MT.GRASS] : null, pal = tgp ? P[m].map((c, ci) => c.map((v, j) => v + (tgp[ci][j] - v) * wt)) : P[m];
       const dk = dark(pal[0], tgp ? .5 : .6), lt = lite(pal[2], 1.04), tall = b === B.TALL, spr = tgp ? TT.sp * wt * .92 : 0;
-      let cnt = tall ? 6 : R(1) < (m === MT.FOREST ? .9 : .7) ? 1 : 0; if (!tall && R(5) < spr) cnt = 0;
+      let cnt = tall ? 6 : R(1) < (m === MT.FOREST ? .9 : .7) ? 1 : 0; if (R(5) < spr) cnt = 0; else if (tall && spr > .3) cnt = 3;
       for (let q = 0; q < cnt + (!tall && R(2) < .25 && R(6) >= spr ? 1 : 0); q++){
         const x = bx + (.16 + .68 * R(3 + q)) * D, y = by + (.4 + .55 * R(9 + q)) * D;
         if (matAt(x | 0, y | 0) !== m) continue; tuft(x, y, tall ? 1.35 : .8 + R(15 + q) * .5, dk, lt);
