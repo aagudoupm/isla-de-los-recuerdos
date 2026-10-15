@@ -3392,10 +3392,13 @@ function onEnter(x, y){
   G.steps++; if (G.steps % 8 === 0) regen();
   explore(x, y); updateZone(x, y);
   const tr = trainerSees(x, y); if (tr){ trainerApproach(tr); return; }
-  const b = W.base[idx(x, y)];
+  const b = W.base[idx(x, y)], outside = W.biome[idx(x, y)] !== BI.TOWN && b !== B.BRIDGE;
+  if (outside) G.sinceQ = (G.sinceQ || 0) + 1;   // pasos fuera de los pueblos sin ningún reto
   if (b === B.TALL || b === B.RUBBLE){
     RS.rustle.push({x, y, t0:performance.now(), ph:Math.random() * 6});
-    if (G.grace > 0) G.grace--; else if (Math.random() < .14) wildEncounter(x, y);
+    if (G.grace > 0) G.grace--; else if (Math.random() < .16 || (G.sinceQ || 0) >= 200) wildEncounter(x, y);
+  } else if (outside){
+    if (G.grace > 0) G.grace--; else if (Math.random() < .009 || (G.sinceQ || 0) >= 200) wildEncounter(x, y);
   }
   if (G.steps % 40 === 0) save();
 }
@@ -3435,7 +3438,7 @@ async function restoreRegion(T){
   await wait(4000); G.restored[T.id] = true; RS.restoring = null; ecoState({key:ekey(G.isl || 0, T.id)}); save();
 }
 async function afterBattle(res, trainer){
-  G.grace = 4; setScreen('world'); mode = 'busy'; P.path = []; await fade(false);
+  G.grace = 4; G.sinceQ = 0; setScreen('world'); mode = 'busy'; P.path = []; await fade(false);
   if (res === 'won' && trainer){
     G.defeated[trainer.id] = true; if (trainer.kind === 'leader'){ PS.zones++; savePS(); } save();
     if (trainer.champion){
@@ -3470,7 +3473,7 @@ async function interactObj(x, y){
 }
 function nearestTown(){ let best = W.towns[0], bd = 1e9; for (const T of W.towns){ const d = Math.hypot(T.cx - P.x, T.cy - P.y); if (d < bd){ bd = d; best = T; } } return best; }
 async function wildEncounter(x, y){
-  mode = 'busy'; P.path = []; RS.marker = null;
+  G.sinceQ = 0; mode = 'busy'; P.path = []; RS.marker = null;
   let bi = W.biome[idx(x, y)]; if (bi === BI.TOWN || bi === BI.OCEAN) bi = BI.PLAIN;
   const lv = levelAtXY(x, y), id = speciesFor(bi, Math.random), shiny = Math.random() < .06;
   const foe = mkCreature(id, Math.max(2, lv + rint(-1, 2)), 0, shiny);
@@ -4365,7 +4368,7 @@ async function startTower(){
     const fl = towerFloor(), boss = fl % 5 === 0, sp = foePool(), s = sp[(hashStr('t' + fl) + fl * 3) % sp.length];
     const lvl = Math.min(30, 3 + fl + Math.floor(fl / 3) + (boss ? 3 : 0)), foe = mkCreature(s.id, lvl, 0);
     await flash(); const res = await startChallenge({kind:'tower', floor:fl, foes:[foe], trainer:null, biome:BI.MOUNT});
-    G.grace = 4; setScreen('world'); mode = 'busy'; await fade(false);
+    G.grace = 4; G.sinceQ = 0; setScreen('world'); mode = 'busy'; await fade(false);
     if (res === 'won'){
       G.tower = G.tower || {best:0}; G.tower.best = fl; qp('tower'); G.petals = (G.petals || 0) + (boss ? 6 : 1); save();
       await sayAsync([`¡Piso ${fl} superado!` + (boss ? ' ¡Era un piso especial! Ganas 6 Pétalos de Color.' : ' Ganas 1 Pétalo de Color.'), `Tu récord en la Torre del Saber: piso ${fl}. Puedes seguir subiendo desde el menú Misiones.`], 'Torre del Saber');
@@ -4378,7 +4381,7 @@ async function startWeeklyBoss(){
     const lvl = Math.min(30, 10 + LV_BONUS + Math.floor(wn % 5)), foe = mkCreature(s.id, lvl, 0, true);
     await sayAsync([`¡Cuidado! ${s.name} brillante ha aparecido en la isla.`, 'Solo viene una vez a la semana. Si respondes bien a todo, se hará tu amigo.'], 'Jefe de la semana');
     await flash(); const res = await startChallenge({kind:'boss', foes:[foe], trainer:null, biome:BI.PLAIN});
-    G.grace = 4; setScreen('world'); mode = 'busy'; await fade(false);
+    G.grace = 4; G.sinceQ = 0; setScreen('world'); mode = 'busy'; await fade(false);
     if (res === 'befriended'){ G.boss = {w:wk, done:true}; G.petals = (G.petals || 0) + 10; qp('win'); save(); await sayAsync(['¡Lo has conseguido! Ganas 10 Pétalos de Color.', 'El próximo Jefe llegará la semana que viene.'], 'Jefe de la semana'); } else save();
   });
 }
@@ -4745,9 +4748,9 @@ async function healAtCentro(b){
     if (v === 'hint'){ await sayAsync(hintLines(true), 'Posadera'); }
     else if (v === 'collect'){ const r = collectAll(); beep(880, .1); setTimeout(() => beep(1320, .15), 100); await sayAsync([`¡Recogido! 🍎 ${r.food} frutos y ✨ ${r.xp} de experiencia para cada duende del grupo.`].concat(r.ups.length ? [r.ups.join('. ') + '.'] : []), 'Posadera'); }
     else if (v === 'travel'){
-      const dopts = dests.map(T => ({label:`📍 ${T.name}${G.restored[T.id] ? ' ✓' : ''}`, value:T.id})); dopts.push({label:'← Volver', value:-1, cls:'ghost'});
-      const id = await pickAsync('¿A qué pueblo quieres ir?', dopts);
-      if (id >= 0){ await sayAsync('¡Buen viaje! Que los duendes te guíen.', 'Posadera'); await travelTo(W.towns.find(T => T.id === id)); return; }
+      const dopts = dests.map(T => G.restored[T.id] ? {label:`📍 ${T.name} ✓`, value:T.id} : {label:`🌫️ ${T.name} · aún sin luz` + (T.leader ? ` (${T.leader.name})` : ''), value:T.id, cls:'ghost', disabled:true}); dopts.push({label:'← Volver', value:-1, cls:'ghost'});
+      const id = await pickAsync('¿A qué pueblo quieres ir? (Solo a los que ya tienen su luz de vuelta)', dopts);
+      if (id >= 0 && G.restored[id]){ await sayAsync('¡Buen viaje! Que los duendes te guíen.', 'Posadera'); await travelTo(W.towns.find(T => T.id === id)); return; }
     } else return;
   }
 }
