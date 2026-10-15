@@ -4817,9 +4817,9 @@ async function houseTalk(b){
 }
 
 /* ---------- la habitación (misma escala que el pueblo: 1 casilla = 16 px, el personaje mide lo mismo) ---------- */
-const ROOM = {open:false, b:null, raf:0, busy:false, look:0, chest:false, key:'', W:448, L:null, grid:null, pl:null, last:0, res:null, bg:null, bgK:0};
+const ROOM = {sub:0, open:false, b:null, raf:0, busy:false, look:0, chest:false, key:'', W:448, L:null, grid:null, pl:null, last:0, res:null, bg:null, bgK:0};
 const RH = 208, CS = 6;
-const ROOMART = {img:{}, tex:[], loading:false}, FS = 1.3;
+const ROOMART = {img:{}, tex:[], loading:false}, FS = 1.0;
 function loadRoomArt(){
   if (ROOMART.loading || typeof ROOMART_SRC === 'undefined') return; ROOMART.loading = true;
   for (const k in ROOMART_SRC.spr){ const [lw, lh, u] = ROOMART_SRC.spr[k], im = new Image(); im.src = u; ROOMART.img[k] = {im, lw, lh}; }
@@ -4828,51 +4828,55 @@ function loadRoomArt(){
 loadRoomArt();
 const ra = n => ROOMART.img[n];
 /* ----- plano de la habitación: cada casa elige muebles, suelo, paredes y alfombra según su semilla ----- */
-function roomLayout(W_, b, chest){
-  const seed = hashStr('rm' + hk(b)), pickN = (a, sh) => a[(seed >> sh) % a.length], L = {W:W_, items:[], hs:[], block:[], app:{}, face:{}, wide:W_ >= 400};
-  L.floor = seed % 6; L.wall = 6 + (seed >> 3) % 6; L.rug = 'rug' + ((seed >> 6) % 6);
+function roomLayout(W_, b, chest, sub){
+  const seed = hashStr('rm' + hk(b)), pickN = (a, sh) => a[(seed >> sh) % a.length], L = {W:W_, sub:sub, items:[], hs:[], block:[], app:{}, face:{}, wide:W_ >= 400};
+  L.floor = (seed % 6 + (sub ? 1 : 0)) % 6; L.wall = 6 + ((seed >> 3) + (sub ? 2 : 0)) % 6; L.rug = 'rug' + (((seed >> 6) + (sub ? 3 : 0)) % 6);
   const tableV = pickN(['tabL', 'tabR'], 9), bedV = pickN(['bed1', 'bed2', 'bunk'], 11), fireV = pickN(['fire1', 'fire2'], 13), shelfV = pickN(['shelfT', 'shelfL'], 14), cookV = pickN([0, 1, 2], 15), winV = pickN(['win17', 'win6'], 17), petV = pickN(['cat', 'dog1', 'dog2'], 19);
   L.petKind = petV === 'cat' ? 'cat' : 'dog';
   const decor = pickN([['paint', 'mirOv'], ['portr', 'paint'], ['cuckoo', 'portr'], ['mirror', 'paint']], 21), hasClock = (seed >> 23) & 1, hasLamp = (seed >> 24) & 1;
   const cookArts = cookV === 0 ? ['cnt'] : cookV === 1 ? ['cntC'] : ['stove', 'fridge'];
   const hot = (id, it, lab, pad) => { pad = pad || 0; L.hs.push({id, x:it.x - it.w / 2 - pad, y:it.by - it.h - pad, w:it.w + pad * 2, h:it.h + pad * 2, lab}); };
-  const mk = (n, x, by, o) => { const a = ra(n); if (!a) return null; const it = Object.assign({n, x, by, w:a.lw * FS, h:a.lh * FS}, o || {}); L.items.push(it); return it; };
-  // pared del fondo: se reparten de izquierda a derecha con el mismo hueco
-  const wall = [{n:shelfV, role:'shelf', lab:'Libros'}, {n:winV, role:'win', top:30}];
-  cookArts.forEach(n => wall.push({n, role:'cook'}));
-  if (L.wide){ wall.push({n:winV, role:'win', top:30}); wall.push({n:'dres', role:'ward'}); }
-  if (hasClock && L.wide) wall.push({n:'clock', role:'clock'});
-  wall.push({n:fireV, role:'fire'});
-  let sum = 0; wall.forEach(w => { w.w = ra(w.n) ? ra(w.n).lw * FS : 40; sum += w.w; });
+  const mk = (n, x, by, o) => { if (n === 'pdoor'){ const it = Object.assign({n, x, by, w:24, h:40}, o || {}); L.items.push(it); return it; } const a = ra(n); if (!a) return null; const it = Object.assign({n, x, by, w:a.lw * FS * ((o && o.sc) || 1), h:a.lh * FS * ((o && o.sc) || 1)}, o || {}); L.items.push(it); return it; };
+  const wall = sub
+    ? [{n:winV, role:'win', top:30}, ...cookArts.map(n => ({n, role:'cook'})), {n:'dres', role:'ward', sc:1.2}, {n:'desk', role:'deco'}, {n:decor[1], role:'deco', top:22}, {n:winV, role:'win', top:30}, {n:'pdoor', role:'pass', lab:'🚪 Volver'}]
+    : [{n:shelfV, role:'shelf', lab:'Libros'}, {n:winV, role:'win', top:30}, {n:decor[0], role: decor[0].startsWith('mir') ? 'mirror' : 'deco', top:24}, {n:'pdoor', role:'pass', lab:'🚪 Pasar'}, ...(hasClock ? [{n:'clock', role:'clock'}] : []), {n:fireV, role:'fire', sc:1.2}];
+  let sum = 0; wall.forEach(w => { w.w = w.n === 'pdoor' ? 24 : ra(w.n) ? ra(w.n).lw * FS * (w.sc || 1) : 40; sum += w.w; });
   const gap = Math.max(6, (W_ - 20 - sum) / (wall.length + 1)); let x = 10 + gap; const placed = {};
-  wall.forEach(w => { const a = ra(w.n), cx = x + w.w / 2, by = w.top ? w.top + a.lh * FS : 99; const it = mk(w.n, cx, by, {wall:true}); if (it){ (placed[w.role] = placed[w.role] || []).push(it); hot(w.role, it, w.lab); L.app[w.role] = L.app[w.role] || [cx, 111]; L.face[w.role] = 'up'; } x += w.w + gap; });
-  const cook = placed.cook && placed.cook[0], fire = placed.fire[0];
-  // adornos de pared sobre la cocina y entre ventanas
-  if (cook){ const d = mk(decor[0], cook.x, 14 + ra(decor[0]).lh * FS, {wall:true}); if (d && decor[0].startsWith('mir')) hot('mirror', d, null); L.app.mirror = [cook.x, 111]; L.face.mirror = 'up'; }
-  const jars = ra('jars'); if (placed.ward){ const wd = placed.ward[0]; mk(decor[1], wd.x, 8 + ra(decor[1]).lh * FS, {wall:true}); }
-  if (cook && cookV === 0){ const c = cook; mk('pot', c.x - 12, c.by - c.h * .5, {top:true, by2:c.by + .1}); if (jars) mk('jars', c.x + 26, c.by - c.h + 4, {wall:true, skip:1}); }
-  // música sobre la repisa de la chimenea
-  { const mu = mk('music', fire.x + fire.w * .22, fire.by - fire.h * (fireV === 'fire1' ? .86 : .58), {over:fire, by2:fire.by + .1}); if (mu){ L.hs.push({id:'music', x:mu.x - 9, y:mu.by - mu.h - 3, w:18, h:mu.h + 6}); L.app.music = [fire.x, 113]; L.face.music = 'up'; } }
-  // suelo
-  const tcx = Math.round(W_ * .46), tb = 172, tab = mk(tableV, tcx, tb, {fl:true}); L.tcx = tcx;
-  const th = tab.h, tw = tab.w;
-  mk('chair', tcx - tw / 2 - 6, tb - 2, {fl:true}); mk('chair', tcx + tw / 2 + 6, tb - 2, {fl:true, flip:1});
-  mk('pie', tcx + tw * .2, tb - th * .56, {top:true, by2:tb + .2}); mk('fruit', tcx - tw * .24, tb - th * .56, {top:true, by2:tb + .2}); mk('teap', tcx, tb - th * .72, {top:true, by2:tb + .1});
-  hot('table', {x:tcx, by:tb + 2, w:tw + 8, h:th + 2}, 'Merienda'); L.app.table = [tcx, tb + 12]; L.face.table = 'up';
-  L.block.push([tcx - tw / 2 - 14, tb - 12, tw + 28, 15]);
-  const plt = mk('plant', placed.shelf[0].x + placed.shelf[0].w / 2 + 14, 128, {fl:true}); hot('plant', plt, null); L.block.push([plt.x - 8, plt.by - 7, 16, 9]); L.app.plant = [plt.x, plt.by + 10]; L.face.plant = 'up';
-  const bd = mk(bedV, W_ - 12 - ra(bedV).lw * FS / 2, 202, {fl:true}); hot('bed', bd, null); L.block.push([bd.x - bd.w / 2, bd.by - bd.h * .55, bd.w, bd.h * .55 + 2]); L.app.bed = [bd.x - bd.w / 2 - 10, bd.by - 8]; L.face.bed = 'right';
-  if (chest){ const ch = mk(pickN(['chest1', 'chest2'], 25), 26, 192, {fl:true}); hot('chest', ch, null); L.block.push([ch.x - ch.w / 2, ch.by - 9, ch.w, 11]); L.app.chest = [ch.x + ch.w / 2 + 9, ch.by - 4]; L.face.chest = 'left'; }
-  const pet = mk(petV, Math.max(70, tcx - tw / 2 - 40), 190, {fl:true}); hot('pet', pet, null); L.block.push([pet.x - pet.w / 2, pet.by - 8, pet.w, 9]); L.app.pet = [pet.x + pet.w / 2 + 9, pet.by - 3]; L.face.pet = 'left';
-  const arm = mk(pickN(['arm1', 'arm2'], 26), fire.x - 8, 128, {fl:true, flip:1}); L.block.push([arm.x - 11, arm.by - 7, 22, 9]);
-  if (hasLamp) { const lp = mk('lampF', bd.x - bd.w / 2 - 14, 168, {fl:true}); L.block.push([lp.x - 4, lp.by - 5, 8, 7]); }
-  if (L.wide){ const yb = mk('yarn', bd.x - bd.w / 2 - 30, 200, {fl:true}); L.block.push([yb.x - 8, yb.by - 6, 16, 8]); }
+  wall.forEach(w => { const a = w.n === 'pdoor' ? {lh:40 / FS} : ra(w.n), cx = x + w.w / 2, by = w.top ? w.top + a.lh * FS * (w.sc || 1) : 99; const it = mk(w.n, cx, by, {wall:true, sc:w.sc}); if (it){ (placed[w.role] = placed[w.role] || []).push(it); if (w.role !== 'deco'){ hot(w.role, it, w.lab); L.app[w.role] = L.app[w.role] || [cx, 111]; L.face[w.role] = 'up'; } } x += w.w + gap; });
+  const cook = placed.cook && placed.cook[0];
+  if (cook && cookV === 0){ mk('pot', cook.x - 9, cook.by - cook.h * .5, {top:true, by2:cook.by + .1}); }
+  if (!sub){
+    const fire = placed.fire[0];
+    { const mu = mk('music', fire.x + fire.w * .22, fire.by - fire.h * (fireV === 'fire1' ? .86 : .58), {over:fire, by2:fire.by + .1}); if (mu){ L.hs.push({id:'music', x:mu.x - 8, y:mu.by - mu.h - 3, w:16, h:mu.h + 6}); L.app.music = [fire.x, 113]; L.face.music = 'up'; } }
+    const tcx = Math.round(W_ * .46), tb = 174, tab = mk(tableV, tcx, tb, {fl:true, sc:1.35}); L.tcx = tcx; L.rugY = tb;
+    const th = tab.h, tw = tab.w;
+    mk('chair', tcx - tw / 2 - 3, tb - 2, {fl:true, sc:1.2}); mk('chair', tcx + tw / 2 + 3, tb - 2, {fl:true, flip:1, sc:1.2});
+    mk('pie', tcx + tw * .2, tb - th * .56, {top:true, by2:tb + .2, sc:1.3}); mk('fruit', tcx - tw * .24, tb - th * .56, {top:true, by2:tb + .2, sc:1.3}); mk('teap', tcx, tb - th * .72, {top:true, by2:tb + .1, sc:1.3});
+    hot('table', {x:tcx, by:tb + 2, w:tw + 8, h:th + 2}, 'Merienda'); L.app.table = [tcx, tb + 12]; L.face.table = 'up';
+    L.block.push([tcx - tw / 2 - 12, tb - 10, tw + 24, 13]);
+    const sh = placed.shelf[0], plt = mk('plant', sh.x + sh.w / 2 + 14, 122, {fl:true}); hot('plant', plt, null); L.block.push([plt.x - 7, plt.by - 6, 14, 8]); L.app.plant = [plt.x, plt.by + 10]; L.face.plant = 'up';
+    const arm = mk(pickN(['arm1', 'arm2'], 26), fire.x - 4, 124, {fl:true, flip:1}); L.block.push([arm.x - 10, arm.by - 6, 20, 8]);
+    if (hasLamp) { const lp = mk('lampF', 22, 120, {fl:true}); L.block.push([lp.x - 4, lp.by - 5, 8, 7]); }
+    const ts_ = mk('tabS', Math.round(W_ * .15), 188, {fl:true, sc:1.3}); if (ts_){ mk('flow', ts_.x, ts_.by - ts_.h * .62, {top:true, by2:ts_.by + .1, sc:1.2}); L.block.push([ts_.x - ts_.w / 2, ts_.by - 8, ts_.w, 10]); }
+    const bn = mk('bench', Math.round(W_ * .84), 200, {fl:true, sc:1.15}); if (bn) L.block.push([bn.x - bn.w / 2, bn.by - 8, bn.w, 10]);
+    const mat = mk('mat', W_ / 2, 206, {fl:true, flat:true}); L.hs.push({id:'door', x:mat.x - mat.w / 2 - 4, y:190, w:mat.w + 8, h:18, lab:'🚪 Salir'}); L.app.door = [W_ / 2, 193]; L.face.door = 'down'; L.door = {x:W_ / 2, y:200};
+    L.res = {x:Math.min(tcx + tw / 2 + 34, W_ - 40), y:180}; L.block.push([L.res.x - 8, L.res.y - 6, 16, 8]);
+    L.hs.unshift({id:'res', x:L.res.x - 11, y:L.res.y - 26, w:22, h:30});
+    L.app.res = [L.res.x - 20, L.res.y + 2]; L.face.res = 'right';
+  } else {
+    const tcx = Math.round(W_ * .4); L.tcx = tcx; L.rugY = 168;
+    const bd = mk(bedV, W_ - 14 - ra(bedV).lw * FS * 1.2 / 2, 180, {fl:true, sc:1.2}); hot('bed', bd, null); L.block.push([bd.x - bd.w / 2, bd.by - bd.h * .55, bd.w, bd.h * .55 + 2]); L.app.bed = [bd.x - bd.w / 2 - 10, bd.by - 8]; L.face.bed = 'right';
+    mk('toys', tcx - 18, 170, {fl:true, flat:true}); mk('plush', tcx + 14, 172, {fl:true});
+    if (chest){ const ch = mk(pickN(['chest1', 'chest2'], 25), 28, 184, {fl:true}); hot('chest', ch, null); L.block.push([ch.x - ch.w / 2, ch.by - 8, ch.w, 10]); L.app.chest = [ch.x + ch.w / 2 + 9, ch.by - 4]; L.face.chest = 'left'; }
+    const pet = mk(petV, tcx + 40, 190, {fl:true}); hot('pet', pet, null); L.block.push([pet.x - pet.w / 2, pet.by - 7, pet.w, 8]); L.app.pet = [pet.x - pet.w / 2 - 9, pet.by - 3]; L.face.pet = 'right';
+    const lp = mk('lampF', bd.x - bd.w / 2 - 12, 150, {fl:true}); if (lp) L.block.push([lp.x - 4, lp.by - 5, 8, 7]);
+    const pt = mk('plant', 24, 122, {fl:true}); if (pt){ hot('plant', pt, null); L.block.push([pt.x - 7, pt.by - 6, 14, 8]); L.app.plant = [pt.x + 6, pt.by + 10]; L.face.plant = 'up'; }
+    const ac = mk(pickN(['arm1', 'arm2'], 26), Math.round(W_ * .66), 150, {fl:true, sc:1.15}); if (ac) L.block.push([ac.x - 10, ac.by - 6, 20, 8]);
+    const yb = mk('yarn', tcx - 46, 194, {fl:true}); if (yb) L.block.push([yb.x - 7, yb.by - 5, 14, 7]);
+    L.door = {x:W_ / 2, y:200}; L.res = {x:-99, y:-99};
+  }
   if (placed.clock){ const c = placed.clock[0]; L.app.clock = [c.x, 111]; L.face.clock = 'up'; }
   if (placed.ward){ L.app.ward = [placed.ward[0].x, 111]; L.face.ward = 'up'; }
-  const mat = mk('mat', W_ / 2, 208, {fl:true, flat:true}); L.hs.push({id:'door', x:mat.x - mat.w / 2 - 4, y:190, w:mat.w + 8, h:18, lab:'🚪 Salir'}); L.app.door = [W_ / 2, 193]; L.face.door = 'down'; L.door = {x:W_ / 2, y:200};
-  L.res = {x:Math.min(tcx + tw / 2 + 36, bd.x - bd.w / 2 - 26), y:176}; L.block.push([L.res.x - 8, L.res.y - 6, 16, 8]);
-  L.hs.unshift({id:'res', x:L.res.x - 11, y:L.res.y - 26, w:22, h:30});
-  L.app.res = [L.res.x - 20, L.res.y + 2]; L.face.res = 'right';
   L.shadowW = {};
   return L;
 }
@@ -4937,7 +4941,7 @@ function sizeRoom(rebuild){
   const rm = $('room'), cs = getComputedStyle(rm), availW = rm.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), availH = rm.clientHeight;
   const W_ = Math.max(320, Math.min(480, Math.round(RH * (availW / availH) / 16) * 16)), sc = Math.min(availW / W_, availH / RH), w = Math.floor(W_ * sc), h = Math.floor(RH * sc), dpr = Math.min(2.5, window.devicePixelRatio || 1);
   const box = $('roomBox'), cv = $('roomCv'); box.style.width = w + 'px'; box.style.height = h + 'px'; box.style.fontSize = Math.max(10, h / 21) + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-  if (rebuild || W_ !== ROOM.W || !ROOM.L){ ROOM.W = W_; ROOM.L = roomLayout(W_, ROOM.b, ROOM.chest); ROOM.grid = roomBlocked(); buildHot(); if (ROOM.pl){ ROOM.pl.path = []; ROOM.pl.x = Math.min(ROOM.pl.x, W_ - 12); } }
+  if (rebuild || W_ !== ROOM.W || !ROOM.L){ ROOM.W = W_; ROOM.L = roomLayout(W_, ROOM.b, ROOM.chest, ROOM.sub); ROOM.grid = roomBlocked(); buildHot(); if (ROOM.pl){ ROOM.pl.path = []; ROOM.pl.x = Math.min(ROOM.pl.x, W_ - 12); } }
   ROOM.bg = null; positionHot();
 }
 function buildHot(){
@@ -4949,7 +4953,7 @@ addEventListener('resize', () => { if (ROOM.open) setTimeout(() => { sizeRoom();
 async function enterHouse(b){
   ROOM.b = b; ROOM.key = hk(b); ROOM.look = hashStr('res' + ROOM.key) % 31; ROOM.chest = hasChestHouse(b); ROOM.res = resName(b); G.hchest = G.hchest || {}; ROOM.L = null;
   await fade(true); P.path = []; P.intent = null; RS.marker = null; beep(520, .08); setTimeout(() => beep(660, .08), 90);
-  $('roomTitle').textContent = '🏠 Casa de ' + ROOM.res; $('room').hidden = false; ROOM.open = true; mode = 'room'; ROOM.pl = null; sizeRoom(true);
+  $('roomTitle').textContent = '🏠 Casa de ' + ROOM.res; $('room').hidden = false; ROOM.open = true; mode = 'room'; ROOM.pl = null; ROOM.sub = 0; sizeRoom(true);
   ROOM.pl = {x:ROOM.L.door.x, y:ROOM.L.door.y - 12, dir:'up', moving:false, walkT:0, path:[], intent:null, mark:null, speed:90}; ROOM.last = 0; refreshRoom();
   cancelAnimationFrame(ROOM.raf); (function frame(ts){ if (!ROOM.open) return; const dt = Math.min(.05, (ts - (ROOM.last || ts)) / 1000); ROOM.last = ts; updateRoom(dt); drawRoom(ts); ROOM.raf = requestAnimationFrame(frame); })(performance.now());
   await fade(false);
@@ -4971,6 +4975,10 @@ async function roomAct(id){
 }
 async function roomDo(id){
   const d = dailyG(), k = ROOM.key, b = ROOM.b, team = teamList(), isl = G.isl || 0, pick = (a, s) => a[hashStr(d.d + k + s) % a.length];
+  if (id === 'pass'){
+    const pl = ROOM.pl; await fade(true); ROOM.sub ^= 1; ROOM.L = roomLayout(ROOM.W, ROOM.b, ROOM.chest, ROOM.sub); ROOM.grid = roomBlocked(); buildHot(); ROOM.bg = null; positionHot();
+    const ap = ROOM.L.app.pass; pl.x = ap[0]; pl.y = ap[1] + 6; pl.path = []; pl.dir = 'down'; pl.mark = null; refreshRoom(); beep(500, .06); await fade(false); return;
+  }
   if (id === 'res'){ await residentTalk(b); return; }
   if (id === 'shelf'){
     if (d.got['book:' + k]){ await sayAsync(['Ya has leído un libro de esta estantería hoy. 📚', 'Mañana habrá otro nuevo esperándote.']); return; }
@@ -5029,7 +5037,7 @@ function paintRoomBg(k){
   if (L.wall < 10){ g.fillStyle = '#8a5a30'; g.fillRect(0, 91, W, 7); g.fillStyle = '#b07a44'; g.fillRect(0, 91, W, 2); }
   const sh = g.createLinearGradient(0, 98, 0, 118); sh.addColorStop(0, 'rgba(40,20,10,.32)'); sh.addColorStop(1, 'rgba(40,20,10,0)'); g.fillStyle = sh; g.fillRect(0, 98, W, 20);
   // alfombra
-  const rg = ra(L.rug); if (rg && rg.im.complete){ const rw = rg.lw * FS, rh = rg.lh * FS; g.drawImage(rg.im, L.tcx - rw / 2, 172 - rh * .84, rw, rh); }
+  const rg = ra(L.rug); if (rg && rg.im.complete){ const rw = rg.lw * FS * .8, rh = rg.lh * FS * .8; g.drawImage(rg.im, L.tcx - rw / 2, L.rugY - rh * .84, rw, rh); }
   // luz de las ventanas
   L.items.filter(i => i.n.startsWith('win')).forEach(w => { g.fillStyle = 'rgba(255,246,190,.08)'; g.beginPath(); g.moveTo(w.x - w.w * .35, w.by); g.lineTo(w.x + w.w * .35, w.by); g.lineTo(w.x + w.w * .35 + 34, 156); g.lineTo(w.x - w.w * .35 + 10, 156); g.fill(); });
   ROOM.bg = bg; ROOM.bgK = k;
@@ -5041,13 +5049,14 @@ function drawRoom(ts){
   g.setTransform(k, 0, 0, k, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(ROOM.bg, 0, 0, W, RHH);
   const list = [];
   L.items.forEach(it => { if (it.skip) return; list.push([it.by2 || (it.top ? it.by + 120 : it.by), () => {
+    if (it.n === 'pdoor'){ const x0 = it.x - 12, y0 = it.by - 40; g.fillStyle = '#5a3418'; g.fillRect(x0 - 2, y0 - 2, 28, 42); g.fillStyle = '#9a6234'; g.fillRect(x0, y0, 24, 40); g.fillStyle = '#b57a44'; g.fillRect(x0 + 2, y0 + 2, 9, 17); g.fillRect(x0 + 13, y0 + 2, 9, 17); g.fillRect(x0 + 2, y0 + 22, 9, 16); g.fillRect(x0 + 13, y0 + 22, 9, 16); g.fillStyle = '#ffd23f'; g.beginPath(); g.arc(x0 + 20, y0 + 22, 1.5, 0, 7); g.fill(); return; }
     const a = ra(it.n); if (!a || !a.im.complete) return;
     if (it.fl && !it.flat) shadowAt(g, it.x, it.by - 1, it.w * .42, Math.max(2, it.w * .08), .22);
     if (it.flip){ g.save(); g.translate(it.x, 0); g.scale(-1, 1); g.drawImage(a.im, -it.w / 2, it.by - it.h, it.w, it.h); g.restore(); } else g.drawImage(a.im, it.x - it.w / 2, it.by - it.h, it.w, it.h);
   }]); });
-  const rdir = Math.abs(pl.x - L.res.x) > Math.abs(pl.y - L.res.y) * 1.2 ? (pl.x > L.res.x ? 'right' : 'left') : (pl.y > L.res.y ? 'down' : 'up');
+  const rdir = L.sub ? 'down' : Math.abs(pl.x - L.res.x) > Math.abs(pl.y - L.res.y) * 1.2 ? (pl.x > L.res.x ? 'right' : 'left') : (pl.y > L.res.y ? 'down' : 'up');
   const rs = charSheet(NPC_LOOKS[ROOM.look % 8], 'n' + ROOM.look), bob = Math.sin(t * 2.4) * .5, dk = '#3a2412';
-  const who = [[L.res.x, L.res.y, rs, rdir, 0, true]]; if (avatarSheet) who.push([pl.x, pl.y, avatarSheet, pl.dir, pl.moving ? Math.floor(pl.walkT * 9) % 4 : 0, false]);
+  const who = L.sub ? [] : [[L.res.x, L.res.y, rs, rdir, 0, true]]; if (avatarSheet) who.push([pl.x, pl.y, avatarSheet, pl.dir, pl.moving ? Math.floor(pl.walkT * 9) % 4 : 0, false]);
   who.forEach(w => list.push([w[1], () => {
     const [fx, fy, sh, dir, fr, isRes] = w, ci = sh && sh[dir] && sh[dir][fr]; if (!ci) return; const c = sz(ci), bb = isRes ? bob : 0;
     shadowAt(g, fx, fy, 5.2, 1.9, .28); g.drawImage(c, fx - c.lw / 2, fy - c.lh + bb, c.lw, c.lh);
@@ -5056,7 +5065,7 @@ function drawRoom(ts){
   if (pl.mark){ const a = Math.max(0, 1 - (performance.now() - pl.mark.t) / 900); g.strokeStyle = 'rgba(255,214,60,' + a.toFixed(2) + ')'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(pl.mark.x, pl.mark.y, 5 + Math.sin(t * 8), 2.2, 0, 0, 7); g.stroke(); }
   list.sort((a, c) => a[0] - c[0]).forEach(p => p[1]());
   // resplandor de la chimenea y velas
-  const f = L.items.find(i => i.n.startsWith('fire')); if (f){ const fy = f.by - f.h * .3, fg = g.createRadialGradient(f.x, fy + 12, 2, f.x, fy + 12, 58); const fl = .2 + Math.sin(t * 9) * .04 + Math.sin(t * 5.3) * .03; fg.addColorStop(0, 'rgba(255,170,70,' + fl.toFixed(3) + ')'); fg.addColorStop(1, 'rgba(255,170,70,0)'); g.fillStyle = fg; g.fillRect(f.x - 60, fy - 40, 120, 130); }
+  const f = L.items.find(i => i.n.startsWith('fire')); if (f && f.by){ const fy = f.by - f.h * .3, fg = g.createRadialGradient(f.x, fy + 12, 2, f.x, fy + 12, 58); const fl = .2 + Math.sin(t * 9) * .04 + Math.sin(t * 5.3) * .03; fg.addColorStop(0, 'rgba(255,170,70,' + fl.toFixed(3) + ')'); fg.addColorStop(1, 'rgba(255,170,70,0)'); g.fillStyle = fg; g.fillRect(f.x - 60, fy - 40, 120, 130); }
   const v = g.createRadialGradient(W / 2, RHH / 2, RHH * .55, W / 2, RHH / 2, W * .62); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,8,30,.3)'); g.fillStyle = v; g.fillRect(0, 0, W, RHH);
 }
 
