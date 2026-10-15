@@ -40,6 +40,13 @@ button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
 #mini{pointer-events:auto;width:clamp(84px,25vmin,130px);aspect-ratio:1;image-rendering:auto;border:2px solid rgba(167,159,216,.85);border-radius:10px;background:#0a0918;box-shadow:0 2px 0 rgba(0,0,0,.45)}
 #zone b{display:block;font-size:1.05em;color:var(--sun)}
 #menuIcon{pointer-events:auto;width:46px;height:46px;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);font-size:22px;line-height:1;display:grid;place-items:center;color:var(--text)}
+#dock{position:absolute;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;z-index:4;pointer-events:none}
+#dock button{pointer-events:auto;min-width:54px;height:50px;padding:2px 6px;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);color:var(--text);font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer}
+#dock button i{font-style:normal;font-size:20px;line-height:1}
+#dock button span{font-size:.58em;line-height:1;opacity:.95;white-space:nowrap}
+#dock button:active{background:rgba(42,38,104,.9)}
+#dock button.mis.new i{animation:dk 1s infinite}@keyframes dk{50%{transform:scale(1.2)}}
+@media (max-height:340px){#dock button{height:42px;min-width:46px}#dock button i{font-size:17px}}
 #menuIcon:active{background:rgba(42,38,104,.9)}
 #banner{position:absolute;top:16%;left:50%;transform:translate(-50%,-10px);opacity:0;transition:opacity .45s,transform .45s;pointer-events:none;text-align:center;padding:10px 22px;background:rgba(13,12,27,.82);border:3px solid var(--sun);border-radius:12px;max-width:90%}
 #banner.show{opacity:1;transform:translate(-50%,0)}
@@ -200,6 +207,14 @@ html.prot #game{position:fixed;left:0;top:0;transform-origin:0 0;touch-action:no
   <div id="hud" hidden>
     <div class="hl"><div class="hudchip" id="zone"><b id="zoneName"></b><span id="zoneInfo"></span></div><canvas id="mini" width="120" height="120" aria-label="Mapa del mundo"></canvas></div>
     <button id="menuIcon" aria-label="Abrir menú">☰</button>
+  </div>
+  <div id="dock" hidden>
+    <button data-t="team" aria-label="Amigos"><i>🐾</i><span>Amigos</span></button>
+    <button data-t="dex" aria-label="Colección"><i>📖</i><span>Colección</span></button>
+    <button data-t="map" aria-label="Mapa"><i>🗺️</i><span>Mapa</span></button>
+    <button data-t="pue" aria-label="Pueblos"><i>🏘️</i><span>Pueblos</span></button>
+    <button data-t="mis" aria-label="Misiones"><i>🎯</i><span>Misiones</span></button>
+    <button data-t="shop" aria-label="Tienda"><i>🛍️</i><span>Tienda</span></button>
   </div>
   <button id="goal" class="hudchip" hidden><b id="goalTxt"></b><span id="goalSub"></span></button>
   <div id="goalArrow" hidden><i>➤</i><b></b></div>
@@ -1874,13 +1889,22 @@ const LEADERS = [null,
    pre:['Soy la Doctora Brasa. El volcán se ha enfriado y gris, ¡qué desastre científico!', 'Responde mis preguntas de Ciencias y le devolveremos el calor y el color.'], post:['¡Eureka! El volcán vuelve a arder de colores.', 'Gracias. El Volcán está restaurado.']}
 ];
 const BADGE_NAMES = [null, 'Hoja', 'Ola', 'Roca', 'Rayo', 'Pluma', 'Llama'];
+/* dibujos de aldeano femeninos (para que el nombre y el aspecto coincidan) */
+const LOOK_F = new Set([1, 3, 5, 8, 10, 13, 15, 17, 19, 21, 23, 26, 28]);
+const LEAD_LOOK = {'Maestra Rosa':5, 'Capitán Marea':7, 'Profesor Pedro':24, 'Maestra Chispa':13, 'Poeta Aurora':19, 'Doctora Brasa':8,
+  'Abuela Abeto':10, 'Capitana Escarcha':28, 'Profesor Cristal':27, 'Maestro Ventisca':12, 'Astrónoma Estrella':1, 'Chef Brasero':16,
+  'Jardinera Flora':21, 'Pescador Coral':7, 'Arquitecta Iris':13, 'Mister Brisa':14, 'Cuentacuentos Mariposa':19, 'Inventora Girasol':8};
+const TR_NAMES_M = ['Iker', 'Biel', 'Mateo', 'Sergio', 'Pau', 'Álex', 'Óscar', 'Darío', 'Gael', 'Rubén'];
+const TR_NAMES_F = ['Noa', 'Carmen', 'Aitana', 'Lucía', 'Nuria', 'Irene', 'Elena', 'Paula', 'Alba', 'Sofía'];
+const TR_CLS = [['Explorador', 'Exploradora'], ['Cazador', 'Cazadora'], ['Alumno', 'Alumna'], ['Montañero', 'Montañera'], ['Pescador', 'Pescadora'], ['Guarda', 'Guarda'], ['Excursionista', 'Excursionista'], ['Estudiante', 'Estudiante']];
+const trainerName = (n, look) => { const f = LOOK_F.has(look); return TR_CLS[n % 8][f ? 1 : 0] + ' ' + (f ? TR_NAMES_F : TR_NAMES_M)[(n * 7 + 3) % 10]; };
 const TRAINER_NAMES = ['Iker','Noa','Biel','Carmen','Aitana','Mateo','Sergio','Lucía','Pau','Nuria','Álex','Irene','Óscar','Elena','Darío','Paula','Gael','Alba','Rubén','Sofía'];
 const TRAINER_CLASSES = ['Explorador','Cazadora','Alumno','Montañero','Pescadora','Guarda','Excursionista','Estudiante'];
 const TRAINER_PRE = ['¡Hola! Desde el Gran Olvido no recuerdo cómo se hacía esto… ¿me ayudas con unas preguntas?', '¡Eh, tú! Mi duende y yo estamos atascados con un acertijo. ¿Nos echas una mano?', 'Se me han borrado cosas de la cabeza. ¿Me ayudas a recordarlas?', 'Mi duende está triste porque ya no se acuerda de nada. ¿Puedes animarlo?'];
 const TRAINER_POST = ['¡Gracias! Ahora me acuerdo de todo.', '¡Lo hemos resuelto gracias a ti!', 'Qué bien, ya lo recuerdo. ¡Buen viaje!', 'Mi duende vuelve a sonreír. ¡Gracias!'];
 const NPC_LINES = [
   ['Si aciertas en la asignatura favorita de tu duende, ¡la confianza sube el doble!'],
-  ['Toca a tu personaje para abrir el menú y ver el mapa.'],
+  ['Abajo tienes botones para ver a tus amigos, el mapa, las misiones y la tienda.'],
   ['En la Posada de los Duendes se descansa y se guarda la partida.'],
   ['Cada guardián solo pregunta de una asignatura. ¡Repasa antes de ayudarle!'],
   ['Cada duende tiene un poder: Calor quema zarzas, Piedra rompe rocas, Marea apaga llamas, Chispa activa puertas y Raíz aparta lianas.'],
@@ -2134,7 +2158,7 @@ function generateWorld(seed, isl){
         const dx = x2 - x, dy = y2 - y, dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
         const lvl = levelAtXY(x, y), bi = biome[idx(x, y)], n = tid++, rr = mulberry32(seed + 500 + n);
         const team = [[speciesFor(bi, rr), Math.max(2, lvl - 1)], [speciesFor(bi, rr), lvl]];
-        trainers.push({id:'t' + n, kind:'trainer', x, y, dir, sight:4, name:TRAINER_CLASSES[n % 8] + ' ' + TRAINER_NAMES[(n * 7 + 3) % 20], look:ADULT_LOOKS[(n * 5 + 3) % ADULT_LOOKS.length], team, subject:null,
+        trainers.push({id:'t' + n, kind:'trainer', x, y, dir, sight:4, name:trainerName(n, ADULT_LOOKS[(n * 5 + 3) % ADULT_LOOKS.length]), look:ADULT_LOOKS[(n * 5 + 3) % ADULT_LOOKS.length], team, subject:null,
           pre:[TRAINER_PRE[n % 4]], post:[TRAINER_POST[(n + 1) % 4]]});
         break;
       }
@@ -2146,7 +2170,7 @@ function generateWorld(seed, isl){
     if (lead){
       const x = T.cx + 3, y = T.cy + 1, lvl = levelAtXY(T.cx, T.cy) + 2;
       const team = guardianTeam(lead, ti, lvl);
-      T.leader = {id:'l' + ti, kind:'leader', x, y, dir:'down', sight:0, name:lead.name, title:lead.title, look:[2, 22, 19, 24, 8, 29, 14][ti] || 5, team, subject:lead.subject, badge:ti, pre:lead.pre, post:lead.post};
+      T.leader = {id:'l' + ti, kind:'leader', x, y, dir:'down', sight:0, name:lead.name, title:lead.title, look:LEAD_LOOK[lead.name] != null ? LEAD_LOOK[lead.name] : 5, team, subject:lead.subject, badge:ti, pre:lead.pre, post:lead.post};
       trainers.push(T.leader);
     }
     const nn = ti === 0 ? 3 : 2;
@@ -2203,7 +2227,7 @@ const ISLANDS = [
   {id:0, name:'Isla Olvidada', trim:'1.er trimestre', opens:'septiembre', seed:20261013, season:'base', lv:0,
    towns:['Aldea Brote', 'Pueblo Hoja', 'Puerto Marea', 'Ciudad Pedernal', 'Aldea Chispa', 'Villa Aurora', 'Monte Brasa'],
    leaders:LEADERS,
-   elena:['¡Hola! Soy la Profesora Elena. Bienvenido a Aldea Brote.', 'Toca el suelo para caminar. Toca a la gente y las puertas para interactuar.', 'Si tocas a tu personaje, se abre el menú con el mapa y tus duendes.'],
+   elena:['¡Hola! Soy la Profesora Elena. Bienvenido a Aldea Brote.', 'Toca el suelo para caminar. Toca a la gente y las puertas para interactuar.', 'Con los botones de abajo ves el mapa, tus duendes, las misiones y la tienda.'],
    champ:{pre:['Así que has devuelto el color a las seis regiones. Soy Cronos, el Sabio de la isla.', 'El Gran Olvido nació del último rincón de gris. Para vencerlo, tendrás que usar todo lo que has aprendido, en todas las asignaturas.'],
           post:['¡Increíble! Has aprendido, explorado y ayudado a todos tus amigos.', 'El Gran Olvido se ha desvanecido. ¡La isla vuelve a brillar gracias a ti!'],
           team:[['marejon', 16], ['brasaurio', 16], ['cactin', 17], ['fosilon', 18]]},
@@ -2605,13 +2629,14 @@ const BASE_T = 64;              // un tile lógico (16 px) = 64 px de arte base
 function recolorRules(src, rules){
   const c = cv(src.width, src.height), g = c.getContext('2d'); g.drawImage(src, 0, 0);
   const id = g.getImageData(0, 0, c.width, c.height), d = id.data;
+  const cw = c.width;
   for (let i = 0; i < d.length; i += 4){
-    if (!d[i + 3]) continue;
+    if (!d[i + 3]) continue; const px = (i >> 2) % cw, py = ((i >> 2) / cw) | 0;
     const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2, dd = mx - mn;
     let h = 0, s = dd === 0 ? 0 : dd / (1 - Math.abs(2 * l - 1));
     if (dd){ if (mx === r) h = ((gg - b) / dd + 6) % 6; else if (mx === gg) h = (b - r) / dd + 2; else h = (r - gg) / dd + 4; h *= 60; }
     for (const [test, dh, ds] of rules){
-      if (!test(h, s, l)) continue;
+      if (!test(h, s, l, px, py)) continue;
       h = (h + dh + 360) % 360; s = Math.max(0, Math.min(1, s * (ds || 1)));
       const C = (1 - Math.abs(2 * l - 1)) * s, X = C * (1 - Math.abs((h / 60) % 2 - 1)), m = l - C / 2; let rr, g2, bb;
       if (h < 60){ rr = C; g2 = X; bb = 0; } else if (h < 120){ rr = X; g2 = C; bb = 0; } else if (h < 180){ rr = 0; g2 = C; bb = X; } else if (h < 240){ rr = 0; g2 = X; bb = C; } else if (h < 300){ rr = X; g2 = 0; bb = C; } else { rr = C; g2 = 0; bb = X; }
@@ -2662,8 +2687,11 @@ function finishHD(){
 /* ---------- jugador: variantes de color por apariencia ---------- */
 /* [desplazamiento de tono de mochila/pantalón, de camiseta, saturación de camiseta] */
 const HD_LOOK = {p0:[0, 0, 1], p1:[0, 170, 2.6], p2:[0, 70, 2.4], p3:[0, 235, 2.4]};
-const SHIRT_T = (h, s) => h > 30 && h < 62 && s > .12 && s < .75;     // caqui de la camiseta
-const BAG_T = (h, s, l) => h >= 8 && h <= 34 && s > .25;              // marrones (mochila, pantalón, botas)
+const SKINP = (h, s, l) => s > .42 && l > .36 && h >= 8 && h <= 32;
+const SKINS = (h, s, l) => s > .55 && l > .5 && h >= 10 && h <= 30;      // piel clara y saturada: nunca se tiñe
+const SHIRT_T = (h, s, l, x, y) => h > 30 && h < 62 && s > .12 && s < .75 && !SKINS(h, s, l) && !(y < 52 && x > 14 && x < 76) && !(y > 70 && y < 94 && (x < 22 || x > 66));     // caqui de la camiseta
+/* marrones de mochila, pantalón y botas; la cabeza (piel y pelo) y la piel de manos y piernas quedan intactas */
+const BAG_T = (h, s, l, x, y) => h >= 8 && h <= 34 && s > .25 && !SKINS(h, s, l) && !(y < 56 && x > 14 && x < 76) && !(y > 64 && y < 94 && (x < 22 || x > 66) && SKINP(h, s, l));
 function hdCharSheet(key){
   if (key[0] === 'n') return hdNpcSheet(+key.slice(1));
   let v = HD_LOOK[key]; if (!v && key[0] === 'c'){ const [a, c, s] = key.slice(1).split('_').map(Number), b = HD_LOOK['p' + a] || HD_LOOK.p0; v = [c || b[0], s || b[1], s ? 2.4 : b[2]]; } v = v || HD_LOOK.p0;
@@ -3313,7 +3341,7 @@ function handleTap(e, first){
   const wx = VIEW.camX + lx, wy = VIEW.camY + ly, tx = Math.floor(wx / TS), ty = Math.floor(wy / TS);
   if (first){
     const pp = pPos();
-    if (Math.abs(wx - (pp.x * TS + 8)) <= 9 && wy >= pp.y * TS - 15 && wy <= pp.y * TS + 17){ openMenu(); return; }
+    if (Math.abs(wx - (pp.x * TS + 8)) <= 9 && wy >= pp.y * TS - 15 && wy <= pp.y * TS + 17) return;   // tocar al personaje no hace nada
     for (const en of ENTS){
       if (wx >= en.x * TS - 3 && wx <= en.x * TS + 19 && wy >= en.y * TS - 15 && wy <= en.y * TS + 18){ goTo(en.tx, en.ty, {t:'ent', e:en}); return; }
     }
@@ -3487,7 +3515,7 @@ addEventListener('keydown', e => {
 /* ---------- pantallas y bucle ---------- */
 function setScreen(s){
   screen = s;
-  $('start').hidden = s !== 'start'; $('battle').hidden = s !== 'battle'; $('menu').hidden = s !== 'menu'; $('hud').hidden = s !== 'world';
+  $('start').hidden = s !== 'start'; $('battle').hidden = s !== 'battle'; $('menu').hidden = s !== 'menu'; $('hud').hidden = s !== 'world'; $('dock').hidden = s !== 'world';
   $('vig').hidden = s === 'battle' || s === 'menu'; view_.style.visibility = (s === 'battle' || s === 'menu') ? 'hidden' : 'visible';
   if (s !== 'world') $('banner').classList.remove('show');
   musicMode(s === 'battle' ? 'battle' : s === 'menu' ? 'menu' : 'world');
@@ -3498,6 +3526,7 @@ function loop(ts){
   if (W && (screen === 'world' || screen === 'start')){
     if (screen === 'world' && G){
       if (mode === 'world') updatePlayer(dt);
+      { const dk = $('dock'), vis = mode === 'world' ? 'visible' : 'hidden'; if (dk.style.visibility !== vis) dk.style.visibility = vis; }
       updateFollower(dt);
       if (avatarKey !== lookKey()){ avatarKey = lookKey(); avatarSheet = charSheet(LOOKS[G.avatar], avatarKey); }
       const pp = pPos();
@@ -3932,6 +3961,7 @@ function drawWorldMap(cvm, opts){
 }
 function drawMini(){ if (!W || !G || screen !== 'world') return; drawWorldMap($('mini'), {fog:false, big:false}); }
 setInterval(drawMini, 300);
+document.querySelectorAll('#dock button').forEach(b => b.addEventListener('click', () => { ensureAudio(); menuTab = b.dataset.t; openMenu(); }));
 $('mini').addEventListener('click', () => { ensureAudio(); menuTab = 'map'; openMenu(); });
 function menuMap(body){
   const wrap = el('div', 'mapwrap'), cvm = el('canvas'); cvm.id = 'mapCv'; cvm.width = 400; cvm.height = 400;
@@ -4609,7 +4639,7 @@ setInterval(refreshGoal, 700);
     const inside = sx > m && sx < w - m && sy > m + 34 && sy < h - m;
     if (inside){ a.hidden = true; } else {
       const cx = w / 2, cy = h / 2, dx = sx - cx, dy = sy - cy, ang = Math.atan2(dy, dx);
-      const kx = (w / 2 - m) / Math.max(1e-3, Math.abs(dx)), ky = (h / 2 - m - 18) / Math.max(1e-3, Math.abs(dy)), kk = Math.min(kx, ky);
+      const kx = (w / 2 - m) / Math.max(1e-3, Math.abs(dx)), ky = (dy > 0 ? h - 74 - cy : cy - m - 18) / Math.max(1e-3, Math.abs(dy)), kk = Math.min(kx, ky);
       a.style.left = (cx + dx * kk) + 'px'; a.style.top = (cy + dy * kk) + 'px'; a.firstElementChild.style.transform = `rotate(${ang}rad)`; a.hidden = false;
       a.lastElementChild.textContent = Math.round(Math.hypot(g.tx - P.x, g.ty - P.y)) + ' pasos';
     }
@@ -4796,11 +4826,7 @@ const ROOMART_SRC = {"spr":{"shelfT":[42.3,62,"data:image/png;base64,iVBORw0KGgo
 
 'use strict';
 /* ===== Dentro de las casas: habitaciones con objetos que tocar, vecino con encargos y casas cerradas ===== */
-function houseOpen(b){
-  if (!G || !W || b.kind !== 'house') return false;
-  const hs = W.buildings.filter(x => x.kind === 'house' && x.town === b.town), i = hs.findIndex(x => x.id === b.id);
-  return i === ((G.isl || 0) * 3 + b.town) % 4;
-}
+function houseOpen(b){ return false; }   // las casas siempre están cerradas; la habitación interior queda sin uso
 const CLOSED_LINES = [
   '¡Vaya! La puerta está cerrada. Por la rendija se oye roncar a alguien… ¡qué sueño!',
   'Toc, toc… Nadie contesta. Un cartelito dice: «Salimos a buscar setas. Volvemos pronto».',
@@ -4812,8 +4838,16 @@ const CLOSED_LINES = [
   'Una regadera descansa junto a la puerta. Está cerrada, pero las flores te saludan.'
 ];
 async function houseTalk(b){
-  if (!houseOpen(b)){ await sayAsync(CLOSED_LINES[hashStr('c' + hk(b)) % CLOSED_LINES.length], 'Puerta'); return; }
-  await enterHouse(b);
+  const d = dailyG(), k = 'knock:' + hk(b), line = CLOSED_LINES[hashStr('c' + hk(b)) % CLOSED_LINES.length];
+  if (d.got[k]){ await sayAsync('Ya has llamado a esta puerta hoy y sigue cerrada. ¡Prueba otra casa o vuelve mañana!', 'Puerta'); return; }
+  d.got[k] = 1;
+  const lucky = hashStr(d.d + hk(b) + 'g') % 4 === 0, isl = G.isl || 0;
+  if (!lucky){ save(); await sayAsync(line, 'Puerta'); return; }
+  const food = hashStr(d.d + hk(b) + 'f') % 2 === 0, n = food ? 2 + isl : 1 + (hashStr(d.d + hk(b) + 'n') % 2) + isl;
+  const ok = giveReward(food ? 0 : n, 0);
+  if (!ok){ save(); await sayAsync(line, 'Puerta'); return; }
+  if (food){ G.food = (G.food || 0) + n; save(); }
+  await sayAsync([line, food ? `…¡Un momento! Por la ventana alguien te lanza ${n} frutos 🍎 y una risita: «¡Para el camino!»` : `…¡Un momento! Debajo de la puerta asoma una bolsita con ${n} Pétalo${n > 1 ? 's' : ''} de Color 🌸. ¡Qué vecinos tan simpáticos!`], 'Puerta');
 }
 
 /* ---------- la habitación (misma escala que el pueblo: 1 casilla = 16 px, el personaje mide lo mismo) ---------- */
@@ -4951,7 +4985,7 @@ function buildHot(){
 function positionHot(){ const L = ROOM.L; document.querySelectorAll('#roomHot .hs').forEach(e => { const r = L.hs[+e.dataset.n]; e.style.left = r.x / L.W * 100 + '%'; e.style.top = r.y / RH * 100 + '%'; e.style.width = r.w / L.W * 100 + '%'; e.style.height = r.h / RH * 100 + '%'; }); }
 addEventListener('resize', () => { if (ROOM.open) setTimeout(() => { sizeRoom(); refreshRoom(); }, 80); });
 async function enterHouse(b){
-  ROOM.b = b; ROOM.key = hk(b); ROOM.look = hashStr('res' + ROOM.key) % 31; ROOM.chest = hasChestHouse(b); ROOM.res = resName(b); G.hchest = G.hchest || {}; ROOM.L = null;
+  ROOM.b = b; ROOM.key = hk(b); ROOM.look = ADULT_LOOKS[hashStr('res' + ROOM.key) % ADULT_LOOKS.length]; ROOM.chest = hasChestHouse(b); ROOM.res = resName(b); G.hchest = G.hchest || {}; ROOM.L = null;
   await fade(true); P.path = []; P.intent = null; RS.marker = null; beep(520, .08); setTimeout(() => beep(660, .08), 90);
   $('roomTitle').textContent = '🏠 Casa de ' + ROOM.res; $('room').hidden = false; ROOM.open = true; mode = 'room'; ROOM.pl = null; ROOM.sub = 0; sizeRoom(true);
   ROOM.pl = {x:ROOM.L.door.x, y:ROOM.L.door.y - 12, dir:'up', moving:false, walkT:0, path:[], intent:null, mark:null, speed:90}; ROOM.last = 0; refreshRoom();
