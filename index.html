@@ -1902,10 +1902,10 @@ const TRAINER_CLASSES = ['Explorador','Cazadora','Alumno','Montañero','Pescador
 const TRAINER_PRE = ['¡Hola! Desde el Gran Olvido no recuerdo cómo se hacía esto… ¿me ayudas con unas preguntas?', '¡Eh, tú! Mi duende y yo estamos atascados con un acertijo. ¿Nos echas una mano?', 'Se me han borrado cosas de la cabeza. ¿Me ayudas a recordarlas?', 'Mi duende está triste porque ya no se acuerda de nada. ¿Puedes animarlo?'];
 const TRAINER_POST = ['¡Gracias! Ahora me acuerdo de todo.', '¡Lo hemos resuelto gracias a ti!', 'Qué bien, ya lo recuerdo. ¡Buen viaje!', 'Mi duende vuelve a sonreír. ¡Gracias!'];
 const NPC_LINES = [
-  ['Si aciertas en la asignatura favorita de tu duende, ¡la confianza sube el doble!'],
+  ['Cada duende tiene una asignatura que le encanta y te preguntará de ella. ¡Cada acierto le da más confianza!'],
   ['Abajo tienes botones para ver a tus amigos, el mapa, las misiones y la tienda.'],
   ['En la Posada de los Duendes se descansa y se guarda la partida.'],
-  ['Cada guardián solo pregunta de una asignatura. ¡Repasa antes de ayudarle!'],
+  ['Los guardianes tienen varios duendes y cada uno te pregunta de lo suyo. ¡Repasa antes de ayudarles!'],
   ['Cada duende tiene un poder: Calor quema zarzas, Piedra rompe rocas, Marea apaga llamas, Chispa activa puertas y Raíz aparta lianas.'],
   ['En la hierba alta viven duendes salvajes. ¡Y también en los pedregales de la montaña!'],
   ['Algunos duendes nacen con colores raros. ¡Son muy difíciles de ver!'],
@@ -3777,7 +3777,7 @@ async function challengeLoop(){
   let first = true, lastS = null;
   for (;;){
     const subj = subjectFor(BT.foe), fav = subj;
-    if (first) await bmsg(BT.kind === 'final' ? 'En este reto cuentan todas las asignaturas.' : `A ${nm(BT.foe)} le encanta ${SUBJECTS[subj]}: te preguntará de eso.`, 1700);
+    if (first) await bmsg(BT.kind === 'final' ? 'En este reto cuentan todas las asignaturas.' : (spOf(BT.foe.id).fav === subj ? `A ${nm(BT.foe)} le encanta ${SUBJECTS[subj]}: te preguntará de eso.` : `${nm(BT.foe)} quiere que repases ${SUBJECTS[subj]}.`), 1700);
     else if (BT.kind !== 'final' && subj !== lastS) await bmsg(`${nm(BT.foe)} te pregunta de ${SUBJECTS[subj]}.`, 1300);
     first = false; lastS = subj;
     const askOk = await ask(subj, BT.foe.lvl); FORCE_TOPIC = null;
@@ -4588,8 +4588,8 @@ async function introGift(){
 }
 async function tutBattle(kind){
   G.tut = G.tut || {}; const k = 'b_' + kind; if (G.tut[k]) return; G.tut[k] = 1; save();
-  const L = kind === 'friend' ? ['Así se hace amigos: cada duende te pregunta de su asignatura favorita, y siempre hay que responderle. Cada acierto aumenta la confianza (arriba, «Reto»).', `Tienes corazones ♥: si fallas, pierdes uno. Si se acaban, el duende se asusta, ¡pero puedes volver a intentarlo!`, 'Las preguntas que falles volverán a salir más adelante para que las repases.']
-    : kind === 'guardian' ? ['Un guardián tiene varios duendes apagados. Anímalos a todos con tus respuestas y el color volverá al pueblo.', 'Cada duende pregunta de su asignatura favorita. ¡Tú puedes!']
+  const L = kind === 'friend' ? ['Así se hace amigos: cada duende te hace preguntas de repaso, y siempre hay que responderle. Cada acierto aumenta la confianza (arriba, «Reto»).', `Tienes corazones ♥: si fallas, pierdes uno. Si se acaban, el duende se asusta, ¡pero puedes volver a intentarlo!`, 'Las preguntas que falles volverán a salir más adelante para que las repases.']
+    : kind === 'guardian' ? ['Un guardián tiene varios duendes apagados. Anímalos a todos con tus respuestas y el color volverá al pueblo.', 'Cada duende te hace sus propias preguntas. ¡Tú puedes!']
     : kind === 'help' ? ['Este vecino necesita ayuda. Anima a su duende respondiendo preguntas, igual que con los salvajes.'] : null;
   if (!L) return; for (const t of L) await bmsgTap(t);
 }
@@ -4629,7 +4629,7 @@ function goalNow(){
     if (owned < need){ const t = nearestTall(); return {key:'friends' + next.id + ':' + owned, icon:'🌿', text:`Haz más amigos (${owned}/${need})`, sub:`Cuantos más duendes amigos, más fácil ayudar a ${L.name}. Busca en la hierba alta.`, tx:t ? t[0] : null, ty:t ? t[1] : null}; }
     if (typeof zoneCapReached === 'function' && zoneCapReached()) return {key:'cap', icon:'🌙', text:'¡Hoy ya has hecho tu parte!', sub:`Mañana te espera ${L.name} en ${next.name}. Hoy puedes hacer misiones o subir a la Torre del Saber.`, tx:null, ty:null};
     const near = Math.hypot(P.x - L.x, P.y - L.y) < 7;
-    return {key:'town' + next.id + (near ? 'n' : ''), icon:'📍', text: near ? `Habla con ${L.name}` : `Ve a ${next.name}`, sub:`${L.name} necesita ayuda con ${SUBJECTS[L.subject] || 'varias asignaturas'}. Anima a sus duendes con tus respuestas.`, tx:L.x, ty:L.y};
+    return {key:'town' + next.id + (near ? 'n' : ''), icon:'📍', text: near ? `Habla con ${L.name}` : `Ve a ${next.name}`, sub:`${L.name} necesita ayuda. Anima a sus duendes con tus respuestas.`, tx:L.x, ty:L.y};
   }
   const C = champTown();
   if (C && !G.champion){ const c = C.champion; return {key:'champ', icon:'⭐', text:'Visita al Gran Sabio Cronos', sub:'Has devuelto el color a todos los pueblos. Cronos te espera para el desafío final.', tx:c.x, ty:c.y}; }
@@ -4638,7 +4638,7 @@ function goalNow(){
 function questSteps(){
   const out = [], gts = guardTowns(); const owned = G.owned.length;
   out.push([owned > 0, 'Hacer amistad con tu primer duende']);
-  gts.forEach(T => out.push([!!G.restored[T.id], `${T.name}: ayudar a ${T.leader.name} (${SUBJECTS[T.leader.subject] || 'todas'})`]));
+  gts.forEach(T => out.push([!!G.restored[T.id], `${T.name}: ayudar a ${T.leader.name}`]));
   const C = champTown(); if (C) out.push([!!G.champion, 'Vencer al Gran Olvido con el Sabio Cronos']);
   return out;
 }
