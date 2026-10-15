@@ -2213,6 +2213,15 @@ function generateWorld(seed, isl){
       }
     }
   });
+  /* alrededor de los pueblos áridos (roca, desierto, ceniza, hielo) casi no hay vegetación */
+  { const ARID = {3:1, 4:.8, 5:.85, 6:.95};
+    for (const T of towns){ const a = ARID[T.id]; if (!a) continue;
+      for (let y = T.cy - 32; y <= T.cy + 32; y++) for (let x = T.cx - 40; x <= T.cx + 40; x++){
+        if (!inb(x, y)) continue; const i = idx(x, y), o = obj[i]; if (o !== OB.TREE && o !== OB.BUSH && o !== OB.FLOWER && o !== OB.MUSH && o !== OB.LOG && !(o === OB.PINE && T.id !== 5)) continue;
+        const d = Math.hypot((x - T.cx) * .8, y - T.cy) + (hash2(x >> 2, y >> 2, seed + 7) - .5) * 9; if (d >= 32) continue;
+        const p = (d <= 9 ? 1 : (32 - d) / 23) * a, h = hash2(x, y, seed + 31);
+        if (h < p){ obj[i] = (o === OB.TREE && h < p * .1) ? (T.id === 5 ? OB.PINE : OB.DEADTREE) : OB.NONE; }
+      } } }
   return {seed, base, obj, biome, bidx, towns, buildings, trainers, npcs, roads, spawn, nooks};
 }
 const TYPE_LINE = {
@@ -2782,13 +2791,13 @@ const MT_OUT = [[29, 90, 142], [168, 125, 62], [30, 90, 40], [30, 90, 40], [138,
 
 /* suelo propio de cada pueblo: [oscuro, medio, claro] de hierba, arena, camino y adoquín */
 const TOWN_GROUND = {
-  brote:{g:['#6bb844', '#85cc55', '#a2de6c'], p:['#b58a52', '#c99f64', '#dcb77f'], c:['#b8a98a', '#d3c6a8', '#e8dcc3']},
-  hoja:{g:['#2f7a3a', '#3f9247', '#56aa58'], p:['#7e5f3c', '#947450', '#ad8e68'], c:['#8f9684', '#a9b09b', '#c2c8b5']},
-  marea:{g:['#cdb87a', '#dfcb91', '#eedeaa'], p:['#a89270', '#bba484', '#cfbb9d'], c:['#8fa0b6', '#aebfd3', '#cbd8e8']},
-  pedernal:{g:['#85857f', '#9b9a93', '#b3b2aa'], p:['#8d8374', '#a2988a', '#b9afa1'], c:['#7f8396', '#9a9eb2', '#b6bacb']},
-  chispa:{g:['#c4ae55', '#d8c46c', '#e9d98c'], p:['#c19650', '#d4aa62', '#e4c27f'], c:['#c4b08a', '#dbc8a2', '#eddcba']},
-  aurora:{g:['#bdd3e3', '#d8e9f4', '#f0f8fd'], p:['#b3c4d2', '#c9d8e4', '#dfe9f1'], c:['#92b6d6', '#b3d1ea', '#d3e8f7']},
-  brasa:{g:['#45403f', '#5a5455', '#726a6c'], p:['#6a5246', '#7f6556', '#957968'], c:['#46424c', '#5f5a67', '#797382']}
+  brote:{sp:0, g:['#6bb844', '#85cc55', '#a2de6c'], p:['#b58a52', '#c99f64', '#dcb77f'], c:['#b8a98a', '#d3c6a8', '#e8dcc3']},
+  hoja:{sp:0, g:['#2f7a3a', '#3f9247', '#56aa58'], p:['#7e5f3c', '#947450', '#ad8e68'], c:['#8f9684', '#a9b09b', '#c2c8b5']},
+  marea:{sp:0.55, g:['#cdb87a', '#dfcb91', '#eedeaa'], p:['#a89270', '#bba484', '#cfbb9d'], c:['#8fa0b6', '#aebfd3', '#cbd8e8']},
+  pedernal:{sp:0.85, g:['#85857f', '#9b9a93', '#b3b2aa'], p:['#8d8374', '#a2988a', '#b9afa1'], c:['#7f8396', '#9a9eb2', '#b6bacb']},
+  chispa:{sp:0.6, g:['#c4ae55', '#d8c46c', '#e9d98c'], p:['#c19650', '#d4aa62', '#e4c27f'], c:['#c4b08a', '#dbc8a2', '#eddcba']},
+  aurora:{sp:0.7, g:['#bdd3e3', '#d8e9f4', '#f0f8fd'], p:['#b3c4d2', '#c9d8e4', '#dfe9f1'], c:['#92b6d6', '#b3d1ea', '#d3e8f7']},
+  brasa:{sp:0.9, g:['#45403f', '#5a5455', '#726a6c'], p:['#6a5246', '#7f6556', '#957968'], c:['#46424c', '#5f5a67', '#797382']}
 };
 const TG_MAT = (() => { const a = []; a[MT.GRASS] = 'g'; a[MT.SAND] = 'g'; a[MT.FOREST] = 'g'; a[MT.PATH] = 'p'; a[MT.COBBLE] = 'c'; return a; })();
 const TG_PAL = {};
@@ -2798,7 +2807,7 @@ function townGroundAt(x, y){
   if (!best || bd > 40 * 40) return null;
   const k = TOWN_KEYS[best.id], G0 = TOWN_GROUND[k]; if (!G0) return null;
   const se = TERR.season, ck = k + se; if (!TG_PAL[ck]){ const o = {}; for (const m of [MT.GRASS, MT.SAND, MT.FOREST, MT.PATH, MT.COBBLE]){ const t = G0[TG_MAT[m]].map(hx), f = se === 'winter' ? TERR_TONES.winter.grass.map(hx) : null; o[m] = f ? t.map((c, i) => c.map((v, j) => v * .45 + f[i][j] * .55)) : t; } TG_PAL[ck] = o; }
-  return {cx:best.cx, cy:best.cy, pal:TG_PAL[ck]};
+  return {cx:best.cx, cy:best.cy, pal:TG_PAL[ck], sp:G0.sp || 0};
 }
 function paintChunk(cx, cy){
   const t0 = performance.now(), D = TERR.D, N = CHK * D, hw = N >> 1, P = terrPal(), ox = cx * CHK, oy = cy * CHK, W2 = CHK + 2;
@@ -2811,6 +2820,7 @@ function paintChunk(cx, cy){
   }
   const f = cv(hw, hw), fg = f.getContext('2d'), id = fg.createImageData(hw, hw), px = id.data, mat = new Uint8Array(hw * hw), k2 = 2 / D;
   const wm = [0, 0, 0, 0], wv = [0, 0, 0, 0], TT = townGroundAt(ox + CHK / 2, oy + CHK / 2);
+  const tgw = (u, v) => { if (!TT) return 0; const ddx = (u - TT.cx) * .8, ddy = v - TT.cy, d = Math.sqrt(ddx * ddx + ddy * ddy) + (vnT(u / 4.5 + 7, v / 4.5 + 3) - .5) * 11; if (d >= 32) return 0; const q = d <= 9 ? 1 : (32 - d) / 23; return q * q * (3 - 2 * q); };
   for (let j = 0; j < hw; j++){
     const v0 = oy + (j + .5) * k2;
     for (let i = 0; i < hw; i++){
@@ -2894,12 +2904,14 @@ function paintChunk(cx, cy){
     const X = ox + tx, Y = oy + ty, b = tb[(ty + 1) * W2 + tx + 1], bx = tx * D, by = ty * D, m = tm[(ty + 1) * W2 + tx + 1];
     const R = i => hash2(X, Y, seed + 100 + i);
     if (b === B.GRASS || b === B.TALL || b === B.FOREST){
-      const pal = P[m], dk = dark(pal[0], .6), lt = lite(pal[2], 1.04), tall = b === B.TALL, cnt = tall ? 6 : R(1) < (m === MT.FOREST ? .9 : .7) ? 1 : 0;
-      for (let q = 0; q < cnt + (!tall && R(2) < .25 ? 1 : 0); q++){
+      const wt = tgw(X + .5, Y + .5), tgp = wt > 0 ? TT.pal[MT.GRASS] : null, pal = tgp ? P[m].map((c, ci) => c.map((v, j) => v + (tgp[ci][j] - v) * wt)) : P[m];
+      const dk = dark(pal[0], tgp ? .5 : .6), lt = lite(pal[2], 1.04), tall = b === B.TALL, spr = tgp ? TT.sp * wt * .92 : 0;
+      let cnt = tall ? 6 : R(1) < (m === MT.FOREST ? .9 : .7) ? 1 : 0; if (!tall && R(5) < spr) cnt = 0;
+      for (let q = 0; q < cnt + (!tall && R(2) < .25 && R(6) >= spr ? 1 : 0); q++){
         const x = bx + (.16 + .68 * R(3 + q)) * D, y = by + (.4 + .55 * R(9 + q)) * D;
         if (matAt(x | 0, y | 0) !== m) continue; tuft(x, y, tall ? 1.35 : .8 + R(15 + q) * .5, dk, lt);
       }
-      if (!tall && m === MT.GRASS && R(20) < P.flowers){
+      if (!tall && m === MT.GRASS && R(20) < P.flowers * (1 - spr)){
         const x = bx + (.2 + .6 * R(21)) * D, y = by + (.3 + .6 * R(22)) * D;
         if (matAt(x | 0, y | 0) === MT.GRASS){ const col = ['#fff6d0', '#ffd95a', '#ff9fc2', '#c8a6ff'][(R(23) * 4) | 0]; g.fillStyle = '#2b6b2a'; g.beginPath(); g.arc(x, y, 5 * k, 0, 7); g.fill(); g.fillStyle = col; g.beginPath(); g.arc(x, y, 3.2 * k, 0, 7); g.fill(); }
       }
