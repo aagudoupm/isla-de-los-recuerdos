@@ -40,13 +40,11 @@ button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
 #mini{pointer-events:auto;width:clamp(84px,25vmin,130px);aspect-ratio:1;image-rendering:auto;border:2px solid rgba(167,159,216,.85);border-radius:10px;background:#0a0918;box-shadow:0 2px 0 rgba(0,0,0,.45)}
 #zone b{display:block;font-size:1.05em;color:var(--sun)}
 #menuIcon{pointer-events:auto;width:46px;height:46px;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);font-size:22px;line-height:1;display:grid;place-items:center;color:var(--text)}
-#dock{position:absolute;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;z-index:4;pointer-events:none}
-#dock button{pointer-events:auto;min-width:54px;height:50px;padding:2px 6px;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);color:var(--text);font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer}
-#dock button i{font-style:normal;font-size:20px;line-height:1}
-#dock button span{font-size:.58em;line-height:1;opacity:.95;white-space:nowrap}
+#dock{position:absolute;right:max(10px,env(safe-area-inset-right));top:66px;display:flex;flex-direction:column;gap:5px;z-index:4;pointer-events:none}
+#dock button{pointer-events:auto;width:46px;height:42px;padding:0;border-radius:12px;border:2px solid rgba(167,159,216,.85);background:rgba(13,12,27,.72);color:var(--text);font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;cursor:pointer}
+#dock button i{font-style:normal;font-size:17px;line-height:1}
+#dock button span{font-size:.46em;line-height:1.1;opacity:.95;white-space:nowrap}
 #dock button:active{background:rgba(42,38,104,.9)}
-#dock button.mis.new i{animation:dk 1s infinite}@keyframes dk{50%{transform:scale(1.2)}}
-@media (max-height:340px){#dock button{height:42px;min-width:46px}#dock button i{font-size:17px}}
 #menuIcon:active{background:rgba(42,38,104,.9)}
 #banner{position:absolute;top:16%;left:50%;transform:translate(-50%,-10px);opacity:0;transition:opacity .45s,transform .45s;pointer-events:none;text-align:center;padding:10px 22px;background:rgba(13,12,27,.82);border:3px solid var(--sun);border-radius:12px;max-width:90%}
 #banner.show{opacity:1;transform:translate(-50%,0)}
@@ -184,12 +182,12 @@ html.prot #game{position:fixed;left:0;top:0;transform-origin:0 0;touch-action:no
 @keyframes turn{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
 #loading{position:absolute;inset:0;background:var(--bg);display:grid;place-items:center;font-family:var(--logo);font-size:12px;color:var(--sun);z-index:10;letter-spacing:1px}
 @media (max-aspect-ratio:1/1){
-  #start{grid-template-columns:1fr;align-content:center}
-  #battle{grid-template-columns:1fr;grid-template-rows:minmax(0,46%) minmax(0,1fr)}
-  #bpanel{border-left:0;border-top:3px solid var(--edge)}
-  #menu{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
-  #mtabs{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:3px solid #2a2668}
-  .mtab.close{margin-top:0;margin-left:auto}
+  html:not(.prot) #start{grid-template-columns:1fr;align-content:center}
+  html:not(.prot) #battle{grid-template-columns:1fr;grid-template-rows:minmax(0,46%) minmax(0,1fr)}
+  html:not(.prot) #bpanel{border-left:0;border-top:3px solid var(--edge)}
+  html:not(.prot) #menu{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  html:not(.prot) #mtabs{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:3px solid #2a2668}
+  html:not(.prot) .mtab.close{margin-top:0;margin-left:auto}
 }
 #goal{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:min(40%,330px);text-align:left;color:#fff;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:2px;pointer-events:none;border-color:rgba(255,210,63,.9);z-index:5}
 #goal b{font-size:.84em;color:#ffd23f}#goal span{font-size:.7em;opacity:.92;line-height:1.25}
@@ -4176,6 +4174,13 @@ function boot(){
 }
 setTimeout(boot, 60);
 
+/* pantalla completa donde el navegador lo permite (Android, iPad, ordenador); en iPhone hay que instalarla en la pantalla de inicio */
+function goFull(){
+  try { const de = document.documentElement; if (!document.fullscreenElement && !document.webkitFullscreenElement){ const f = de.requestFullscreen || de.webkitRequestFullscreen; if (f){ const r = f.call(de, {navigationUI:'hide'}); if (r && r.catch) r.catch(() => {}); } } } catch (e) {}
+  try { if (screen.orientation && screen.orientation.lock){ const r = screen.orientation.lock('landscape'); if (r && r.catch) r.catch(() => {}); } } catch (e) {}
+}
+addEventListener('pointerup', goFull);
+
 'use strict';
 /* ===== ISLA DE LOS RECUERDOS · ajustes de padres, tiempo diario, islas, misiones y Torre ===== */
 const PKEY = 'cronikas.parent.v1';
@@ -4653,7 +4658,7 @@ setInterval(refreshGoal, 700);
     const inside = sx > m && sx < w - m && sy > m + 34 && sy < h - m;
     if (inside){ a.hidden = true; } else {
       const cx = w / 2, cy = h / 2, dx = sx - cx, dy = sy - cy, ang = Math.atan2(dy, dx);
-      const kx = (w / 2 - m) / Math.max(1e-3, Math.abs(dx)), ky = (dy > 0 ? h - 74 - cy : cy - m - 18) / Math.max(1e-3, Math.abs(dy)), kk = Math.min(kx, ky);
+      const kx = (dx > 0 ? w - 84 - cx : cx - m) / Math.max(1e-3, Math.abs(dx)), ky = (h / 2 - m - 18) / Math.max(1e-3, Math.abs(dy)), kk = Math.min(kx, ky);
       a.style.left = (cx + dx * kk) + 'px'; a.style.top = (cy + dy * kk) + 'px'; a.firstElementChild.style.transform = `rotate(${ang}rad)`; a.hidden = false;
       a.lastElementChild.textContent = Math.round(Math.hypot(g.tx - P.x, g.ty - P.y)) + ' pasos';
     }
