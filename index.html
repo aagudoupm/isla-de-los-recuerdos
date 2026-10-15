@@ -2780,6 +2780,26 @@ const TILE_DEPTH = (() => { const a = []; a[B.DEEP] = 1; a[B.SHALLOW] = .25; a[B
 const MT_PRI = [0, 3, 2, 1, 4, 6, 5, 7];
 const MT_OUT = [[29, 90, 142], [168, 125, 62], [30, 90, 40], [30, 90, 40], [138, 90, 43], [61, 56, 80], [110, 101, 88], [40, 36, 58]];
 
+/* suelo propio de cada pueblo: [oscuro, medio, claro] de hierba, arena, camino y adoquín */
+const TOWN_GROUND = {
+  brote:{g:['#6bb844', '#85cc55', '#a2de6c'], p:['#b58a52', '#c99f64', '#dcb77f'], c:['#b8a98a', '#d3c6a8', '#e8dcc3']},
+  hoja:{g:['#2f7a3a', '#3f9247', '#56aa58'], p:['#7e5f3c', '#947450', '#ad8e68'], c:['#8f9684', '#a9b09b', '#c2c8b5']},
+  marea:{g:['#cdb87a', '#dfcb91', '#eedeaa'], p:['#a89270', '#bba484', '#cfbb9d'], c:['#8fa0b6', '#aebfd3', '#cbd8e8']},
+  pedernal:{g:['#85857f', '#9b9a93', '#b3b2aa'], p:['#8d8374', '#a2988a', '#b9afa1'], c:['#7f8396', '#9a9eb2', '#b6bacb']},
+  chispa:{g:['#c4ae55', '#d8c46c', '#e9d98c'], p:['#c19650', '#d4aa62', '#e4c27f'], c:['#c4b08a', '#dbc8a2', '#eddcba']},
+  aurora:{g:['#bdd3e3', '#d8e9f4', '#f0f8fd'], p:['#b3c4d2', '#c9d8e4', '#dfe9f1'], c:['#92b6d6', '#b3d1ea', '#d3e8f7']},
+  brasa:{g:['#45403f', '#5a5455', '#726a6c'], p:['#6a5246', '#7f6556', '#957968'], c:['#46424c', '#5f5a67', '#797382']}
+};
+const TG_MAT = (() => { const a = []; a[MT.GRASS] = 'g'; a[MT.SAND] = 'g'; a[MT.FOREST] = 'g'; a[MT.PATH] = 'p'; a[MT.COBBLE] = 'c'; return a; })();
+const TG_PAL = {};
+function townGroundAt(x, y){
+  if (typeof W === 'undefined' || !W || !W.towns) return null;
+  let best = null, bd = 1e9; for (const T of W.towns){ const d = (T.cx - x) * (T.cx - x) + (T.cy - y) * (T.cy - y); if (d < bd){ bd = d; best = T; } }
+  if (!best || bd > 26 * 26) return null;
+  const k = TOWN_KEYS[best.id], G0 = TOWN_GROUND[k]; if (!G0) return null;
+  const se = TERR.season, ck = k + se; if (!TG_PAL[ck]){ const o = {}; for (const m of [MT.GRASS, MT.SAND, MT.FOREST, MT.PATH, MT.COBBLE]){ const t = G0[TG_MAT[m]].map(hx), f = se === 'winter' ? TERR_TONES.winter.grass.map(hx) : null; o[m] = f ? t.map((c, i) => c.map((v, j) => v * .45 + f[i][j] * .55)) : t; } TG_PAL[ck] = o; }
+  return {cx:best.cx, cy:best.cy, pal:TG_PAL[ck]};
+}
 function paintChunk(cx, cy){
   const t0 = performance.now(), D = TERR.D, N = CHK * D, hw = N >> 1, P = terrPal(), ox = cx * CHK, oy = cy * CHK, W2 = CHK + 2;
   /* material de las casillas del trozo y su contorno de 1 casilla */
@@ -2790,7 +2810,7 @@ function paintChunk(cx, cy){
     tm[j * W2 + i] = m; td[j * W2 + i] = TILE_DEPTH[b] || 0;
   }
   const f = cv(hw, hw), fg = f.getContext('2d'), id = fg.createImageData(hw, hw), px = id.data, mat = new Uint8Array(hw * hw), k2 = 2 / D;
-  const wm = [0, 0, 0, 0], wv = [0, 0, 0, 0];
+  const wm = [0, 0, 0, 0], wv = [0, 0, 0, 0], TT = townGroundAt(ox + CHK / 2, oy + CHK / 2);
   for (let j = 0; j < hw; j++){
     const v0 = oy + (j + .5) * k2;
     for (let i = 0; i < hw; i++){
@@ -2807,7 +2827,8 @@ function paintChunk(cx, cy){
       let mb = m0, sb = s0; if (s1 > sb){ sb = s1; mb = m1; } if (s2 > sb){ sb = s2; mb = m2; } if (s3 > sb){ sb = s3; mb = m3; }
       mat[j * hw + i] = mb;
       const n = vnT(u0 / 1.4, v0 / 1.4) * .5 + vnT(u0 / .6, v0 / .6) * .3 + vnT(u0 / .22, v0 / .22) * .2;
-      let r, g, b, tone;
+      let r, g, b, tone, tw = 0, tp = null;
+      if (TT && TT.pal[mb]){ const ddx = (u0 - TT.cx) * .85, ddy = v0 - TT.cy, d = Math.sqrt(ddx * ddx + ddy * ddy) + (n - .5) * 3; if (d < 19){ const q = d <= 11 ? 1 : (19 - d) / 8; tw = q * q * (3 - 2 * q); tp = TT.pal[mb]; } }
       if (mb === MT.WATER){
         const ww = (m0 === 0 ? w00 : 0) + (m1 === 0 ? w10 : 0) + (m2 === 0 ? w01 : 0) + (m3 === 0 ? w11 : 0);
         const dd = ((m0 === 0 ? w00 * td[a] : 0) + (m1 === 0 ? w10 * td[a + 1] : 0) + (m2 === 0 ? w01 * td[a + W2] : 0) + (m3 === 0 ? w11 * td[a + W2 + 1] : 0)) / Math.max(.001, ww);
@@ -2818,7 +2839,7 @@ function paintChunk(cx, cy){
         tone = nn < .38 ? pal[0] : nn < .66 ? pal[1] : pal[2]; r = tone[0]; g = tone[1]; b = tone[2];
       } else if (mb === MT.COBBLE){
         const row = Math.floor(v0 * 4), off = (row & 1) * .5, su = u0 * 2 + off, st = Math.floor(su), fr = su - st, fv = v0 * 4 - row;
-        const pal = P[MT.COBBLE], var_ = (NZT[((st * 7 + row * 13) & 255) + (((st + row) & 255) << 8)] - .5) * .14;
+        const pal = tw > 0 ? P[MT.COBBLE].map((c, ci) => ci < 2 ? c.map((v, j) => v + (tp[ci][j] - v) * tw) : c) : P[MT.COBBLE], var_ = (NZT[((st * 7 + row * 13) & 255) + (((st + row) & 255) << 8)] - .5) * .14;
         tone = pal[1]; const lin = fv < .13 || fr < .07;
         if (lin){ r = pal[0][0] * .78; g = pal[0][1] * .78; b = pal[0][2] * .8; }
         else { const hl = fv > .78 ? .08 : 0; r = tone[0] * (1 + var_ + hl); g = tone[1] * (1 + var_ + hl); b = tone[2] * (1 + var_ + hl); }
@@ -2826,7 +2847,7 @@ function paintChunk(cx, cy){
         const pal = P[MT.CLIFF], vv = v0 * 2.6 + vnT(u0 * 1.3, v0 * .8) * .9, fv = vv - Math.floor(vv), tt = n * .8 + (fv < .14 ? -.35 : fv > .86 ? .12 : 0);
         tone = tt < .3 ? pal[0] : tt < .62 ? pal[1] : pal[2]; r = tone[0]; g = tone[1]; b = tone[2];
       } else {
-        const pal = P[mb]; let nn = n;
+        let pal = P[mb]; if (tw > 0) pal = pal.map((c, ci) => c.map((v, j) => v + (tp[ci][j] - v) * tw)); let nn = n;
         if (mb === MT.SAND) nn = n * .85 + vnT(u0 * .7, v0 * 4.2) * .3 - .08;
         else if (mb === MT.ROCK) nn = n * .9 + vnT(u0 * 3, v0 * 3) * .15 - (Math.abs(vnT(u0 * 2.3 + 9, v0 * 2.3 + 4) - .5) < .022 ? .3 : 0);
         const w = .035, c1 = Math.max(0, Math.min(1, (nn - (.40 - w)) / (2 * w))), c2 = Math.max(0, Math.min(1, (nn - (.64 - w)) / (2 * w)));
