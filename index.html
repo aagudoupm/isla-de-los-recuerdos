@@ -2082,7 +2082,7 @@ function generateWorld(seed, isl){
     put(t.x - 3, t.y - 5, OB.BED); put(t.x + 3, t.y - 5, OB.BED); put(t.x - 4 * mx, t.y - 3, OB.BENCH); put(t.x + 4 * mx, t.y + 3, OB.BENCH);
     tryPut([[-8, 7], [8, 7], [-9, -3], [9, 3], [0, 8]], OB.WELL); put(t.x + 4 * mx, t.y - 1, OB.STALL); put(t.x - 4 * mx, t.y + 1, OB.STALL);
     tryPut([[-7, -2], [7, -2], [7, 2], [-7, 3], [-7, 7]], OB.CAMPFIRE); put(t.x + 2, t.y + 3, OB.SIGN); tryPut([[7, 8], [-7, 8], [8, -8], [-9, 8]], OB.BARREL); tryPut([[8, 8], [-8, 8], [9, -8], [-10, 8]], OB.CRATE);
-    if (isl === 0){ const PN = [4, 4, 4, 3, 4, 3, 3][ti], PC = [[[-7, 6], [7, 6]], [[-8, -5], [8, -5]], [[-6, 8], [6, 8]], [[-10, 3], [10, 0]], [[-3, 9], [3, 9]], [[-8, 1], [8, 3]], [[-8, 4], [8, -2]]];
+    { const PN = [4, 4, 4, 3, 4, 3, 3][ti], PC = [[[-7, 6], [7, 6]], [[-8, -5], [8, -5]], [[-6, 8], [6, 8]], [[-10, 3], [10, 0]], [[-3, 9], [3, 9]], [[-8, 1], [8, 3]], [[-8, 4], [8, -2]]];
       for (let k = 0; k < PN; k++) tryPut([...PC[k % PC.length], [-9 + k * 4, 9], [9 - k * 3, -9], [-11, 6 - k]], OB.TP0 + k); }
     for (const [lx, ly] of [[-5, -4], [5, -4], [-5, 4], [5, 4]]) obj[idx(t.x + lx, t.y + ly)] = OB.LAMP;
     T.plaza = {x:t.x, y:t.y + 3};
@@ -2977,7 +2977,12 @@ function bridgeH(x, y){
 const shadowAt = (g, cx, cy, rx, ry, a) => { g.fillStyle = 'rgba(26,12,56,' + (a || .24) + ')'; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.fill(); };
 /* coloca una pieza ilustrada apoyada en la base de la casilla (px,py); devuelve false si no existe */
 const TOWN_KEYS = ['brote', 'hoja', 'marea', 'pedernal', 'chispa', 'aurora', 'brasa'];
-function townKeyAt(x, y){ if (!G || G.isl) return null; let bi = -1, bd = 1e9; for (const T of W.towns){ const d = (T.cx - x) * (T.cx - x) + (T.cy - y) * (T.cy - y); if (d < bd){ bd = d; bi = T.id; } } return TOWN_KEYS[bi] || null; }
+const TA_RULES = {
+  winter:[[(h, s) => h >= 60 && h <= 170 && s > .15, 0, .15], [(h, s) => (h < 50 || h > 340) && s > .3, 200, .55], [(h, s) => h >= 50 && h < 60, 0, .3]],
+  spring:[[(h, s) => (h < 20 || h > 340) && s > .45, -25, .85], [(h, s) => h > 190 && h < 255 && s > .3, 50, 1]]
+};
+function taName(n){ const se = TERR.season, R = TA_RULES[se]; if (!R) return n; const k = n + '@' + se; if (!HDB[k]){ const b = HDB[n]; if (!b) return n; const c = recolorRules(b, R); c.__bw = b.__bw; c.__bh = b.__bh; HDB[k] = c; } return k; }
+function townKeyAt(x, y){ if (!G) return null; let bi = -1, bd = 1e9; for (const T of W.towns){ const d = (T.cx - x) * (T.cx - x) + (T.cy - y) * (T.cy - y); if (d < bd){ bd = d; bi = T.id; } } return TOWN_KEYS[bi] || null; }
 function putHD(items, shs, name, sortY, px, py, o){
   const c = hdi(name); if (!c) return false; o = o || {};
   const sc = o.sc || 1, w = c.lw * sc, h = c.lh * (o.sy || sc), x = px + 8 - w / 2 + (o.dx || 0), y = py + TS - 1 - h + (o.dy || 0);
@@ -3073,7 +3078,7 @@ function drawWorld(t){
       case OB.FENCE: putHD(items, null, 'fence', y + .9, px, py, {sh:0}); break;
       case OB.BED: ent(y + .5, g2 => drawBed(g2, px, py, x + y)); break;
       case OB.BENCH: putHD(items, shs, 'bench', y + .9, px, py, {shw:.4}); break;
-      case OB.TP0: case OB.TP1: case OB.TP2: case OB.TP3: { const tk = townKeyAt(x, y); if (tk) putHD(items, shs, 'ta_' + tk + '_p' + (o - OB.TP0), y + 1, px, py, {shw:.3}); break; }
+      case OB.TP0: case OB.TP1: case OB.TP2: case OB.TP3: { const tk = townKeyAt(x, y); if (tk) putHD(items, shs, taName('ta_' + tk + '_p' + (o - OB.TP0)), y + 1, px, py, {shw:.3}); break; }
       case OB.WELL: putHD(items, shs, 'well', y + 1, px, py, {shw:.36}); break;
       case OB.BARREL: putHD(items, shs, 'barrel', y + 1, px, py, {shw:.4}); break;
       case OB.CRATE: if ((x + y) % 3 === 0) putHD(items, shs, 'crates', y + 1, px, py, {sc:.8, shw:.4}); else putHD(items, shs, 'crate_small', y + 1, px, py, {sc:1.1, shw:.4}); break;
@@ -3099,8 +3104,8 @@ function drawWorld(t){
   }
   for (const b of W.buildings){
     if (b.x > x1 + 3 || b.x + b.w < x0 - 4 || b.y > y1 + 4 || b.y + b.h < y0 - 5) continue;
-    const tkb = TOWN_KEYS[b.town], themed = !(G && G.isl) && tkb;
-    const hn = themed ? 'ta_' + tkb + (b.kind === 'centro' ? '_inn' : '_h' + (b.style % 3)) : b.kind === 'centro' ? 'inn' : ['house_red', 'house_blue', 'house_green', 'house_gold'][b.style % 4], hi = hdi(hn); if (!hi) continue;
+    const tkb = TOWN_KEYS[b.town], themed = !!tkb;
+    const hn = themed ? taName('ta_' + tkb + (b.kind === 'centro' ? '_inn' : '_h' + (b.style % 3))) : b.kind === 'centro' ? 'inn' : ['house_red', 'house_blue', 'house_green', 'house_gold'][b.style % 4], hi = hdi(hn); if (!hi) continue;
     const bx = b.x * TS - camX + (b.w * TS - hi.lw) / 2, by = b.y * TS - camY + b.h * TS + 1 - hi.lh;
     shs.push([bx + hi.lw / 2, b.y * TS - camY + b.h * TS - 1, hi.lw * .46, hi.lw * .09]);
     items.push([b.y + b.h, hi, bx, by, hi.lw, hi.lh, 1]);
@@ -3113,7 +3118,7 @@ function drawWorld(t){
   }
   for (const T of W.towns){
     if (T.cx < x0 - 6 || T.cx > x1 + 6 || T.cy < y0 - 6 || T.cy > y1 + 6) continue;
-    const tk = (G && G.isl) ? null : TOWN_KEYS[T.id], ci = tk && hdi('ta_' + tk + '_ctr'), fi = ci || hdi('fountain'); if (!fi) continue;
+    const tk = TOWN_KEYS[T.id], ci = tk && hdi(taName('ta_' + tk + '_ctr')), fi = ci || hdi('fountain'); if (!fi) continue;
     const fx = T.cx * TS - camX - fi.lw / 2, fy = (T.cy + 1) * TS - camY - fi.lh + 1;
     shs.push([T.cx * TS - camX, (T.cy + 1) * TS - camY - 1, fi.lw * .42, fi.lw * .1]);
     items.push([T.cy + 1, fi, fx, fy, fi.lw, fi.lh, 0]);
