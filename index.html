@@ -47,10 +47,20 @@ button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
 #banner span{font-size:.82em;color:var(--muted)}
 
 /* diálogo */
-#dlg{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(780px,92%);background:rgba(18,16,40,.95);border:3px solid var(--edge);border-radius:14px;padding:10px 16px 18px;min-height:4.6em;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+#dlg{z-index:10;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(780px,92%);background:rgba(18,16,40,.95);border:3px solid var(--edge);border-radius:14px;padding:10px 16px 18px;min-height:4.6em;box-shadow:0 6px 0 rgba(0,0,0,.35)}
 #pick{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;width:min(560px,92%);max-height:88%;overflow:auto;background:rgba(18,16,40,.97);border:3px solid var(--edge);border-radius:14px;padding:10px 14px 14px;box-shadow:0 6px 0 rgba(0,0,0,.35)}
 #pickT{font-weight:700;color:var(--sun);font-size:1.02em;line-height:1.3;margin-bottom:8px}
 #pickB{display:grid;gap:8px}#pickB.cols{grid-template-columns:1fr 1fr}
+#room{position:absolute;inset:0;z-index:5;background:#120d22;display:flex;align-items:center;justify-content:center}
+#roomBox{position:relative}#roomCv{width:100%;height:100%;display:block;border-radius:12px;box-shadow:0 0 0 3px var(--edge)}#roomHot{position:absolute;inset:0}
+.hs{position:absolute;background:transparent;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:10px}
+.hs:active{background:rgba(255,255,255,.18)}
+.hs i{display:none;position:absolute;left:50%;top:-4%;transform:translateX(-50%);font-style:normal;color:#fff3a0;text-shadow:0 0 6px #ffd23f,0 0 2px #3a2412;font-size:1.25em;animation:bob 1.1s ease-in-out infinite;pointer-events:none}
+.hs.new i{display:block}
+@keyframes bob{50%{transform:translate(-50%,-30%)}}
+.hs .lb{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);background:rgba(18,16,40,.85);border:2px solid var(--edge);border-radius:9px;padding:.1em .5em;font-size:.8em;font-weight:700;color:#fff;white-space:nowrap;pointer-events:none}
+#roomTitle{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(18,16,40,.9);border:3px solid var(--edge);border-radius:12px;padding:.25em .9em;font-weight:700;color:var(--sun);pointer-events:none;white-space:nowrap}
+#roomExit{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:12px;padding:.5em 1.1em}
 #dlgWho{font-weight:700;color:var(--sun);font-size:.95em;margin-bottom:2px}
 #dlgTxt{font-size:1.12em;line-height:1.35;min-height:2.7em}
 #dlgMore{position:absolute;right:14px;bottom:4px;color:var(--sun);font-size:.8em;animation:blink 1s steps(2) infinite}
@@ -195,6 +205,7 @@ html.prot #game{position:fixed;left:0;top:0;transform-origin:0 0;touch-action:no
   <button id="goal" class="hudchip" hidden><b id="goalTxt"></b><span id="goalSub"></span></button>
   <div id="goalArrow" hidden><i>➤</i><b></b></div>
   <div id="banner"><b id="banName"></b><span id="banInfo"></span></div>
+  <div id="room" hidden><div id="roomBox"><canvas id="roomCv"></canvas><div id="roomHot"></div></div><div id="roomTitle"></div><button id="roomExit" class="act">🚪 Salir</button></div>
   <div id="pick" hidden><div id="pickT"></div><div id="pickB"></div></div>
   <div id="dlg" hidden><div id="dlgWho"></div><div id="dlgTxt"></div><span id="dlgMore">▼</span></div>
 
@@ -3047,7 +3058,7 @@ function drawWorld(t){
     shs.push([bx + hi.lw / 2, b.y * TS - camY + b.h * TS - 1, hi.lw * .46, hi.lw * .09]);
     items.push([b.y + b.h, hi, bx, by, hi.lw, hi.lh, 1]);
     houseDeco(items, b, t, camX, camY, hi);
-    houseMark(items, b, bx, by, hi, t);
+    houseMark(items, b, bx, by, hi, t, camX, camY);
     if (b.kind !== 'centro' && (b.style % 4 === 0 || b.style % 4 === 3)){
       for (let k = 0; k < 4; k++){ const ph = ((t / 1500) + k * .25) % 1; const sx = bx + hi.lw * .18 + Math.sin(ph * 6 + k) * 1.2 + ph * 3, sy = by + hi.lh * .04 - ph * 11, r = .8 + ph * 1.5;
         ent(b.y + b.h + .5, g2 => { g2.fillStyle = 'rgba(248,248,255,' + (.6 * (1 - ph)).toFixed(2) + ')'; g2.beginPath(); g2.arc(sx, sy, r, 0, 7); g2.fill(); }); }
@@ -4699,7 +4710,7 @@ async function healAtCentro(b){
 }
 
 /* ---------- casas: encargos de los vecinos ---------- */
-const RESIDENTS = ['Doña Rosa', 'Don Mateo', 'Abuela Pilar', 'Señor Hugo', 'Tía Marga', 'Don Anselmo', 'Lucía', 'Pablo el panadero', 'Señora Julia', 'Marcos', 'Carmen la costurera', 'Don Ramiro'];
+const RESIDENTS = ['Sol', 'Noa', 'Alex', 'Cris', 'Ari', 'Nico', 'Dani', 'Fran', 'Eli', 'Rai', 'Kai', 'Gael', 'Luz', 'Juli', 'Mar', 'Tato'];
 const hk = b => (G.isl || 0) + ':' + b.id;
 const resName = b => RESIDENTS[hashStr('r' + hk(b)) % RESIDENTS.length];
 const anyProducer = () => ecoList().length > 0;
@@ -4709,12 +4720,15 @@ function houseQuest(b){
   return {key, name:resName(b), type:types[h % types.length], subj:act[Math.floor(h / 8) % act.length], n:5 + 4 * (G.isl || 0)};
 }
 function houseState(b){
-  if (!G || b.kind === 'centro') return null; const d = dailyG(), key = hk(b);
+  if (!G || b.kind === 'centro' || !houseOpen(b)) return null; const d = dailyG(), key = hk(b);
   if (d.act && d.act.to === key) return 'deliver';
   if (d.done[key] || (d.act && d.act.from === key)) return null;
   return 'quest';
 }
-function houseMark(items, b, bx, by, hi, t){
+function houseMark(items, b, bx, by, hi, t, camX, camY){
+  if (!G || b.kind === 'centro' || !houseOpen(b)) return;
+  { const gx = b.door.x * TS - camX + 8, gy = b.door.y * TS - camY + 7;
+    items.push([b.y + b.h + 1.01, null, {fn:g => { const r = g.createRadialGradient(gx, gy, 0, gx, gy, 9); r.addColorStop(0, 'rgba(255,226,120,' + (.55 + Math.sin(t / 500 + b.id) * .08).toFixed(2) + ')'); r.addColorStop(1, 'rgba(255,226,120,0)'); g.fillStyle = r; g.fillRect(gx - 9, gy - 9, 18, 18); }}]); }
   const st = houseState(b); if (!st) return;
   const cx = bx + hi.lw / 2 + (b.w > 3 ? 0 : 0), cy = by - 3 + Math.sin(t / 330 + b.id) * 1.6;
   items.push([b.y + b.h + 1.02, null, {fn:g => {
@@ -4738,9 +4752,8 @@ function giveReward(petals, xp){
   save(); beep(880, .1); setTimeout(() => beep(1320, .14), 110); return ups;
 }
 const capLine = 'Hoy ya has ayudado a muchísimos vecinos, ¡y te lo agradecen de corazón! Mañana habrá premios nuevos.';
-async function houseTalk(b){
+async function residentTalk(b){
   const d = dailyG(), q = houseQuest(b), key = q.key, who = q.name;
-  P.dir = 'up';
   if (d.act && d.act.to === key){      // entrega de la carta
     const a = d.act; d.act = null; d.done[a.from] = 1;
     const r = giveReward(3, 8);
@@ -4753,7 +4766,7 @@ async function houseTalk(b){
   }
   if (q.type === 'carta'){
     if (d.act){ await sayAsync([`«¡Hola! Quería pedirte un recado…»`, 'Pero ya llevas una carta. Primero entrégala y luego vuelve a verme.'], who); return; }
-    const others = W.buildings.filter(x => x.kind === 'house' && x.town === b.town && x.id !== b.id);
+    const others = W.buildings.filter(x => x.kind === 'house' && x.town === b.town && x.id !== b.id && houseOpen(x));
     if (!others.length){ await sayAsync(HOUSE_LINES[b.id % 4], who); return; }
     const to = others[hashStr(d.d + key) % others.length], toName = resName(to);
     await sayAsync([`«¡Hola, explorador! Tengo una carta para ${toName}, pero me duelen los pies.»`, `Vive en la casa del ${compass(to.x - b.x, to.y - b.y)}, a unos ${Math.round(Math.hypot(to.x - b.x, to.y - b.y))} pasos de aquí.`], who);
@@ -4779,6 +4792,183 @@ async function houseTalk(b){
   const ok = v === qq.answer; recordAnswer(qq, ok); d.done[key] = 1;
   if (ok){ const r = giveReward(3, 8); await sayAsync([`«¡Correcto! Eres muy listo.»`, r ? '¡Te regala 3 Pétalos de Color! 🌸' + (r.length ? ' ' + r.join('. ') + '.' : ' Y tus duendes ganan experiencia.') : capLine], who); }
   else { save(); beep(160, .25); await sayAsync([`«Casi… la respuesta era: ${qq.correct}.»`, '«No pasa nada, así se aprende. Mañana tendré otro acertijo.»'], who); }
+}
+
+'use strict';
+/* ===== Dentro de las casas: habitaciones con objetos que tocar, vecino con encargos y casas cerradas ===== */
+function houseOpen(b){
+  if (!G || !W || b.kind !== 'house') return false;
+  const hs = W.buildings.filter(x => x.kind === 'house' && x.town === b.town), i = hs.findIndex(x => x.id === b.id), par = ((G.isl || 0) + b.town) % 2;
+  return par ? (i === 1 || i === 2) : (i === 0 || i === 3);
+}
+const CLOSED_LINES = [
+  '¡Vaya! La puerta está cerrada. Por la rendija se oye roncar a alguien… ¡qué sueño!',
+  'Toc, toc… Nadie contesta. Un cartelito dice: «Salimos a buscar setas. Volvemos pronto».',
+  '¡Oh, oh! Está cerrada con llave. Debajo del felpudo solo hay un caracol muy sorprendido.',
+  'Huele a bizcocho recién hecho… pero la puerta no se abre. ¡Qué mala suerte!',
+  'Vaya, hoy esta casa está cerrada. Se oyen risitas dentro… ¿serán duendes jugando al escondite?',
+  'La puerta tiene un candado con forma de zanahoria. ¡Hoy no es tu día de suerte!',
+  'Cerrado por vacaciones. Un cartel dibujado con colores dice: «Vuelvo después de la merienda».',
+  'Una regadera descansa junto a la puerta. Está cerrada, pero las flores te saludan.'
+];
+async function houseTalk(b){
+  if (!houseOpen(b)){ await sayAsync(CLOSED_LINES[hashStr('c' + hk(b)) % CLOSED_LINES.length], 'Puerta'); return; }
+  await enterHouse(b);
+}
+
+/* ---------- la habitación ---------- */
+const ROOM = {open:false, b:null, raf:0, busy:false, res:null, look:0, chest:false, key:''};
+const WALLS = [['#f2d7a6', '#d9b77e', '#c9453f'], ['#bfe0d4', '#92c3b2', '#3f7fc9'], ['#f4c2c2', '#dd9a9a', '#3fa56a'], ['#cdd5f5', '#a3afe0', '#d9a53a']];
+const HS = [      // [id, x, y, w, h, etiqueta]  (coordenadas lógicas 320×180)
+  ['res', 196, 98, 52, 76, null], ['shelf', 10, 12, 46, 88, 'Libros'], ['music', 240, 14, 30, 18, null], ['win', 70, 16, 54, 52, 'Ventana'],
+  ['fire', 236, 36, 50, 64, 'Chimenea'], ['table', 116, 104, 90, 38, 'Merienda'], ['plant', 86, 108, 26, 44, null], ['bed', 234, 116, 70, 58, 'Cama'],
+  ['chest', 18, 126, 46, 40, 'Baúl'], ['door', 126, 154, 68, 26, '🚪 Salir']
+];
+const hasChestHouse = b => hashStr('chest' + hk(b)) % 3 === 0;
+function roomAvail(id){
+  const d = dailyG(), k = ROOM.key;
+  if (id === 'res'){ const st = houseState(ROOM.b); return st === 'quest' || st === 'deliver'; }
+  if (id === 'shelf') return !d.got['book:' + k];
+  if (id === 'table') return !d.got['meal:' + k];
+  if (id === 'chest') return ROOM.chest && !(G.hchest && G.hchest[k]);
+  return false;
+}
+function refreshRoom(){ document.querySelectorAll('#roomHot .hs').forEach(h => h.classList.toggle('new', roomAvail(h.dataset.id))); }
+function sizeRoom(){
+  const rm = $('room'), cw = rm.clientWidth, ch = rm.clientHeight, w = Math.floor(Math.min(cw * .98, ch * .92 * 16 / 9)), h = Math.round(w * 9 / 16), box = $('roomBox'), cv = $('roomCv'), dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  box.style.width = w + 'px'; box.style.height = h + 'px'; box.style.fontSize = Math.max(11, w / 40) + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  document.querySelectorAll('#roomHot .hs').forEach(e => { const r = HS.find(x => x[0] === e.dataset.id); e.style.left = r[1] / 3.2 + '%'; e.style.top = r[2] / 1.8 + '%'; e.style.width = r[3] / 3.2 + '%'; e.style.height = r[4] / 1.8 + '%'; });
+}
+addEventListener('resize', () => { if (ROOM.open) setTimeout(sizeRoom, 60); });
+async function enterHouse(b){
+  ROOM.b = b; ROOM.key = hk(b); ROOM.look = hashStr('res' + ROOM.key) % 31; ROOM.chest = hasChestHouse(b); ROOM.res = resName(b); G.hchest = G.hchest || {};
+  await fade(true); P.path = []; P.intent = null; RS.marker = null; beep(520, .08); setTimeout(() => beep(660, .08), 90);
+  const hot = $('roomHot'); hot.innerHTML = '';
+  HS.forEach(r => {
+    if (r[0] === 'chest' && !ROOM.chest) return;
+    const e = document.createElement('button'); e.className = 'hs'; e.dataset.id = r[0]; e.setAttribute('aria-label', r[5] || r[0]);
+    e.innerHTML = '<i>✦</i>' + (r[5] && (r[0] === 'door' || r[0] === 'table' || r[0] === 'shelf') ? '<span class="lb">' + r[5] + '</span>' : '');
+    e.addEventListener('click', () => roomAct(r[0])); hot.appendChild(e);
+  });
+  $('roomTitle').textContent = '🏠 Casa de ' + ROOM.res;
+  $('room').hidden = false; ROOM.open = true; mode = 'room'; sizeRoom(); refreshRoom();
+  cancelAnimationFrame(ROOM.raf); (function frame(ts){ if (!ROOM.open) return; drawRoom(ts); ROOM.raf = requestAnimationFrame(frame); })(performance.now());
+  await fade(false);
+  G.tutR = G.tutR || 0;
+  if (!G.tutR){ G.tutR = 1; save(); ROOM.busy = true; await sayAsync(['¡Qué casa tan acogedora!', 'Toca los objetos que brillan ✦ para ver qué pasa. Y habla con tu vecino: quizá necesite ayuda.']); ROOM.busy = false; }
+}
+async function exitHouse(){
+  if (!ROOM.open || ROOM.busy || mode !== 'room') return; ROOM.busy = true;
+  await fade(true); $('room').hidden = true; ROOM.open = false; cancelAnimationFrame(ROOM.raf); mode = 'world'; P.dir = 'down'; save(); beep(660, .08);
+  await fade(false); ROOM.busy = false;
+}
+$('roomExit').addEventListener('click', exitHouse);
+async function roomAct(id){
+  if (!ROOM.open || ROOM.busy || mode !== 'room') return;
+  if (id === 'door'){ await exitHouse(); return; }
+  ROOM.busy = true;
+  try { await roomDo(id); } finally { ROOM.busy = false; if (ROOM.open) refreshRoom(); }
+}
+async function roomDo(id){
+  const d = dailyG(), k = ROOM.key, b = ROOM.b, team = teamList(), isl = G.isl || 0, pick = (a, s) => a[hashStr(d.d + k + s) % a.length];
+  if (id === 'res'){ await residentTalk(b); return; }
+  if (id === 'shelf'){
+    if (d.got['book:' + k]){ await sayAsync(['Ya has leído un libro de esta estantería hoy. 📚', 'Mañana habrá otro nuevo esperándote.']); return; }
+    d.got['book:' + k] = 1; const act = activeSubj(), sj = pick(act, 's'), fact = pick(CAMP_FACTS[sj], 'f'), xp = 10 + 3 * isl, ups = [];
+    team.forEach(m => gainXp(m, xp).forEach(l => ups.push(`${spOf(m.id).name} sube al nivel ${l}`))); save(); beep(520, .08); setTimeout(() => beep(700, .1), 100);
+    await sayAsync(['Sacas un libro de la estantería y lo abres por una página al azar…', `📖 De ${SUBJECTS[sj]}: «${fact}»`, team.length ? `¡Aprender da fuerza! Tu grupo gana ✨ ${xp} de experiencia.` + (ups.length ? ' ' + ups.join('. ') + '.' : '') : '¡Qué interesante!']); return;
+  }
+  if (id === 'table'){
+    if (d.got['meal:' + k]){ await sayAsync([`${ROOM.res} sonríe: «¡Ya te has comido lo mejor de la merienda!»`, 'Vuelve mañana: siempre sobra algo rico.']); return; }
+    d.got['meal:' + k] = 1; const n = 3 + isl; G.food = (G.food || 0) + n; save(); beep(660, .1); setTimeout(() => beep(880, .1), 100);
+    await sayAsync([`Sobre la mesa hay una tarta recién hecha. ${ROOM.res} te corta un trozo. ¡Ñam, ñam! 🥧`, `Y además te regala ${n} frutos 🍎 del frutero.`]); return;
+  }
+  if (id === 'music'){
+    [523, 659, 784, 659, 523, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .18), i * 190));
+    const c = team.length ? spOf(pick(team, 'm').id).name : null;
+    await sayAsync(['Giras la llavecita de la caja de música… ♪ ♫ ♪', c ? `${c} se pone a bailar y da vueltas de pura alegría. ¡Qué gracioso!` : 'La melodía llena toda la habitación. ¡Qué bonita!']); return;
+  }
+  if (id === 'win'){ await sayAsync(['Te asomas a la ventana. Se ve el pueblo y, a lo lejos, el camino…'].concat(hintLines(true))); return; }
+  if (id === 'fire'){
+    const c = team.length ? spOf(team[hashStr(d.d + k + 'z') % team.length].id).name : null;
+    await sayAsync([pick(['La chimenea crepita y calienta toda la casa. 🔥', 'Las llamas bailan despacito. Da mucho sueño mirarlas.', 'Un tronco hace «¡pop!» y salta una chispita. ¡Cuidado!'], 'c')].concat(c ? [`${c} se acurruca junto al fuego y empieza a roncar: «zzz…»`] : [])); return;
+  }
+  if (id === 'plant'){ await sayAsync([pick(['Una planta muy bien cuidada. Parece que sonríe con sus hojitas.', 'La maceta tiene la tierra húmeda. ¡Alguien la riega todos los días!', 'Una hoja te hace cosquillas en la nariz. ¡Achís!'], 'p')]); return; }
+  if (id === 'bed'){ await sayAsync([pick(['¡Qué cama tan calentita y mullida! Te tumbarías a dormir… pero aún queda mucha isla por explorar.', 'Una colcha de cuadros y una almohada muy blandita. ¡Qué ganas de dormir la siesta!', 'Debajo de la manta asoma un peluche. Parece que te guiña un ojo.'], 'b')]); return; }
+  if (id === 'chest'){
+    if (G.hchest[k]){ await sayAsync('El baúl está vacío. ¡Ya te llevaste lo que había dentro!'); return; }
+    G.hchest[k] = 1; const n = 4 + hashStr('n' + k) % 6; G.petals = (G.petals || 0) + n; save(); beep(880, .1); setTimeout(() => beep(1320, .18), 100);
+    await sayAsync([`${ROOM.res} te guiña un ojo: «Ese baúl guarda recuerdos. Puedes abrirlo.»`, `¡Dentro hay ${n} Pétalos de Color! 🌸`, 'Llevas ' + G.petals + ' en total.']); return;
+  }
+}
+
+/* ---------- dibujo de la habitación ---------- */
+const rrect = (g, x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+function drawRoom(ts){
+  const cv = $('roomCv'), g = cv.getContext('2d'), k = cv.width / 320, t = ts / 1000, b = ROOM.b; if (!b) return;
+  g.setTransform(k, 0, 0, k, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  const [wc, wd, ac] = WALLS[b.style % 4], dk = '#3a2412';
+  g.fillStyle = wc; g.fillRect(0, 0, 320, 100);
+  g.fillStyle = 'rgba(255,255,255,.2)'; for (let x = 0; x < 320; x += 20) g.fillRect(x, 0, 10, 84);
+  g.fillStyle = wd; g.fillRect(0, 84, 320, 16); g.fillStyle = 'rgba(0,0,0,.14)'; g.fillRect(0, 84, 320, 1.4);
+  g.fillStyle = '#c98b52'; g.fillRect(0, 100, 320, 80);
+  for (let y = 100, i = 0; y < 180; y += 10, i++){ g.fillStyle = i % 2 ? 'rgba(90,50,20,.12)' : 'rgba(255,220,160,.1)'; g.fillRect(0, y, 320, 10); g.fillStyle = 'rgba(60,30,10,.32)'; g.fillRect(0, y, 320, .7); for (let x = (i * 37) % 53; x < 320; x += 53) g.fillRect(x, y, .7, 10); }
+  g.fillStyle = '#6b3f1d'; g.fillRect(0, 98, 320, 3.4);
+  // cuadros
+  [[138, 24, 26, 20, 0], [176, 30, 18, 14, 1]].forEach(([x, y, w, h, v]) => { g.fillStyle = dk; rrect(g, x - 2, y - 2, w + 4, h + 4, 2); g.fill(); g.fillStyle = v ? '#f6d98a' : '#9ad8ff'; g.fillRect(x, y, w, h); g.fillStyle = v ? '#e8803a' : '#5cb85c'; g.beginPath(); g.moveTo(x, y + h); g.quadraticCurveTo(x + w * .4, y + h * .35, x + w, y + h * .75); g.lineTo(x + w, y + h); g.fill(); if (!v){ g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 7, y + 6, 3, 0, 7); g.arc(x + 11, y + 6.5, 3.4, 0, 7); g.fill(); } });
+  // ventana + haz de luz
+  g.fillStyle = 'rgba(255,246,190,.15)'; g.beginPath(); g.moveTo(74, 66); g.lineTo(120, 66); g.lineTo(176, 134); g.lineTo(98, 134); g.fill();
+  g.fillStyle = dk; rrect(g, 66, 12, 62, 60, 4); g.fill(); const sky = g.createLinearGradient(0, 18, 0, 66); sky.addColorStop(0, '#8ed3ff'); sky.addColorStop(1, '#e6f7ff'); g.fillStyle = sky; g.fillRect(71, 17, 52, 49);
+  g.fillStyle = '#fff'; const cx = 80 + ((t * 3) % 40); g.beginPath(); g.arc(cx, 30, 4, 0, 7); g.arc(cx + 5, 31, 4.6, 0, 7); g.arc(cx + 10, 30, 3.6, 0, 7); g.fill();
+  g.fillStyle = '#6bbf59'; g.beginPath(); g.moveTo(71, 66); g.quadraticCurveTo(95, 48, 123, 62); g.lineTo(123, 66); g.fill();
+  g.fillStyle = dk; g.fillRect(96, 17, 2.4, 49); g.fillRect(71, 40, 52, 2.4); g.fillStyle = '#9a6430'; g.fillRect(62, 70, 70, 4);
+  g.fillStyle = ac; g.beginPath(); g.moveTo(64, 14); g.quadraticCurveTo(80, 30, 72, 66); g.lineTo(64, 66); g.fill(); g.beginPath(); g.moveTo(130, 14); g.quadraticCurveTo(114, 30, 122, 66); g.lineTo(130, 66); g.fill();
+  // estantería
+  g.fillStyle = dk; rrect(g, 10, 12, 48, 90, 3); g.fill(); g.fillStyle = '#8a5428'; g.fillRect(14, 16, 40, 82);
+  for (let r = 0; r < 4; r++){
+    const y = 18 + r * 20; g.fillStyle = '#5a3418'; g.fillRect(14, y + 17, 40, 3);
+    let x = 15; for (let i = 0; i < 9; i++){ const w = 3 + hashStr(r + ':' + i + b.id) % 3, h = 11 + hashStr(i + ':' + r + b.id) % 6; g.fillStyle = ['#e8504a', '#4a8ee8', '#ffd23f', '#4ab870', '#b490ff', '#ff9ad5', '#f08a3a'][hashStr(r * 9 + i + '' + b.id) % 7]; g.fillRect(x, y + 17 - h, w, h); x += w + .6; if (x > 50) break; }
+  }
+  // chimenea
+  g.fillStyle = dk; rrect(g, 232, 28, 58, 10, 2); g.fill(); g.fillStyle = '#b08850'; g.fillRect(234, 29.5, 54, 6);
+  g.fillStyle = '#8f8f9c'; g.fillRect(238, 38, 46, 62); g.fillStyle = 'rgba(0,0,0,.14)'; for (let y = 42; y < 100; y += 9){ g.fillRect(238, y, 46, .9); for (let x = 244 + (y % 2) * 6; x < 284; x += 12) g.fillRect(x, y, .9, 9); }
+  g.fillStyle = '#1d1424'; g.beginPath(); g.moveTo(246, 100); g.lineTo(246, 66); g.quadraticCurveTo(261, 52, 276, 66); g.lineTo(276, 100); g.fill();
+  g.fillStyle = '#5a3418'; g.fillRect(250, 92, 22, 5);
+  for (let i = 0; i < 3; i++){ const fl = Math.sin(t * 7 + i * 2) * 2, x = 253 + i * 8; g.fillStyle = i === 1 ? '#ffd23f' : '#ff7a2f'; g.beginPath(); g.moveTo(x - 4, 94); g.quadraticCurveTo(x - 3, 80 + fl, x + fl * .3, 72 + fl); g.quadraticCurveTo(x + 3, 80 - fl, x + 4, 94); g.fill(); }
+  const fg = g.createRadialGradient(261, 108, 2, 261, 108, 46); fg.addColorStop(0, 'rgba(255,170,70,.26)'); fg.addColorStop(1, 'rgba(255,170,70,0)'); g.fillStyle = fg; g.fillRect(200, 80, 120, 80);
+  // caja de música sobre la repisa
+  g.fillStyle = dk; rrect(g, 246, 17, 20, 13, 2); g.fill(); g.fillStyle = '#d9a53a'; g.fillRect(247.5, 18.5, 17, 10); g.fillStyle = '#fff3a0'; g.fillRect(253, 23, 6, 2); const nt = (t * 1.2) % 1; g.fillStyle = 'rgba(255,255,255,' + (1 - nt).toFixed(2) + ')'; g.font = 'bold 8px sans-serif'; g.fillText('♪', 262 + nt * 6, 16 - nt * 8);
+  // alfombra
+  g.fillStyle = dk; g.beginPath(); g.ellipse(160, 136, 74, 28, 0, 0, 7); g.fill(); g.fillStyle = ac; g.beginPath(); g.ellipse(160, 136, 71, 25.5, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.4; g.beginPath(); g.ellipse(160, 136, 58, 19, 0, 0, 7); g.stroke();
+  // planta
+  g.fillStyle = dk; g.beginPath(); g.moveTo(90, 132); g.lineTo(110, 132); g.lineTo(107, 150); g.lineTo(93, 150); g.fill(); g.fillStyle = '#d8743a'; g.beginPath(); g.moveTo(91.6, 133.6); g.lineTo(108.4, 133.6); g.lineTo(105.8, 148.4); g.lineTo(94.2, 148.4); g.fill();
+  const sw = Math.sin(t * 1.6) * 1.4; [[-7, 14, -.9], [0, 20, 0], [7, 14, .9], [-3, 11, -.4], [4, 11, .4]].forEach(([dx, h, a]) => { g.save(); g.translate(100, 133); g.rotate(a + sw * .04); g.fillStyle = '#2d7a2b'; g.beginPath(); g.ellipse(dx * .5, -h * .55, 4, h * .62, 0, 0, 7); g.fill(); g.fillStyle = '#4fae4c'; g.beginPath(); g.ellipse(dx * .5 - .4, -h * .55, 2.6, h * .52, 0, 0, 7); g.fill(); g.restore(); });
+  // mesa y sillas
+  g.fillStyle = dk; rrect(g, 102, 116, 14, 20, 3); g.fill(); rrect(g, 204, 116, 14, 20, 3); g.fill(); g.fillStyle = '#c9783a'; rrect(g, 103.4, 117.4, 11.2, 17.2, 2.4); g.fill(); rrect(g, 205.4, 117.4, 11.2, 17.2, 2.4); g.fill();
+  g.fillStyle = dk; g.fillRect(122, 138, 5, 12); g.fillRect(195, 138, 5, 12); rrect(g, 116, 108, 92, 34, 5); g.fill();
+  g.fillStyle = '#e0a064'; rrect(g, 117.6, 109.6, 88.8, 26, 4); g.fill(); g.fillStyle = '#b8743a'; g.fillRect(118, 135, 88, 5);
+  g.fillStyle = '#fff'; g.beginPath(); g.ellipse(186, 120, 11, 5, 0, 0, 7); g.fill(); g.fillStyle = '#c9843a'; g.beginPath(); g.ellipse(186, 119, 8.4, 3.6, 0, 0, 7); g.fill(); g.fillStyle = '#e8504a'; for (let i = 0; i < 4; i++){ g.beginPath(); g.arc(182 + i * 2.8, 118.4 + (i % 2) * 1.2, 1, 0, 7); g.fill(); }
+  g.fillStyle = dk; g.beginPath(); g.ellipse(139, 121, 11, 5, 0, 0, 7); g.fill(); g.fillStyle = '#b8743a'; g.beginPath(); g.ellipse(139, 120, 9.6, 4, 0, 0, 7); g.fill(); [['#e8504a', 135, 116.6], ['#ffd23f', 140, 115.6], ['#6bbf59', 144, 117]].forEach(([c, x, y]) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill(); });
+  // cama
+  g.fillStyle = dk; rrect(g, 234, 120, 68, 54, 5); g.fill(); g.fillStyle = '#f6efe0'; rrect(g, 236.4, 122.4, 63.2, 49.2, 4); g.fill(); g.fillStyle = '#fff'; rrect(g, 240, 125, 22, 16, 5); g.fill(); g.fillStyle = ac; rrect(g, 236.4, 143, 63.2, 28.6, 4); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 244; x < 298; x += 12) g.fillRect(x, 143, 5, 28);
+  // baúl
+  if (ROOM.chest){
+    const op = !!(G.hchest && G.hchest[ROOM.key]); g.fillStyle = dk; rrect(g, 20, 138, 42, 28, 4); g.fill(); g.fillStyle = '#a8662c'; rrect(g, 22, 140, 38, 24, 3); g.fill(); g.fillStyle = '#7e4a1e'; g.fillRect(22, 150, 38, 3);
+    if (op){ g.fillStyle = '#1d1424'; rrect(g, 24, 128, 34, 14, 3); g.fill(); g.fillStyle = '#ffd23f'; g.fillRect(36, 139, 10, 3); }
+    else { g.fillStyle = '#c0803a'; rrect(g, 22, 130, 38, 14, 5); g.fill(); g.fillStyle = '#ffd23f'; rrect(g, 37, 145, 8, 8, 2); g.fill(); g.fillStyle = dk; g.fillRect(40, 148, 2, 4); }
+  }
+  // felpudo y puerta
+  g.fillStyle = dk; rrect(g, 132, 160, 56, 20, 4); g.fill(); g.fillStyle = '#7a4f2a'; rrect(g, 134, 162, 52, 18, 3); g.fill(); g.fillStyle = 'rgba(255,255,255,.45)'; g.font = 'bold 8px sans-serif'; g.textAlign = 'center'; g.fillText('HOLA', 160, 174); g.textAlign = 'left';
+  // personajes (ordenados por los pies)
+  const bob = Math.sin(t * 2.4) * .8, who = [];
+  const rs = charSheet(NPC_LOOKS[ROOM.look % 8], 'n' + ROOM.look); who.push([150, rs, 'left', 214, bob, true]); if (avatarSheet) who.push([168, avatarSheet, 'up', 84, 0, false]);
+  who.sort((a, c) => a[0] - c[0]).forEach(([fy, sh, dir, fx, bb, isRes]) => {
+    const ci = sh && sh[dir] && sh[dir][0]; if (!ci) return; const c = sz(ci), s2 = 2.25, w = c.lw * s2, h = c.lh * s2;
+    shadowAt(g, fx, fy, 11, 3.4, .28); g.drawImage(c, fx - w / 2, fy - h + bb, w, h);
+    if (isRes){ const st = houseState(ROOM.b); if (st){ const by = fy - h - 6 + Math.sin(t * 3) * 1.6; g.fillStyle = st === 'deliver' ? '#7fd6ff' : '#ffd23f'; g.strokeStyle = dk; g.lineWidth = 1.1; g.beginPath(); g.arc(fx, by, 6, 0, 7); g.fill(); g.stroke(); g.fillStyle = dk; if (st === 'quest'){ g.fillRect(fx - 1, by - 3.6, 2, 4.6); g.fillRect(fx - 1, by + 2, 2, 1.8); } else { g.fillRect(fx - 3.4, by - 2.2, 6.8, 4.6); g.strokeStyle = '#7fd6ff'; g.lineWidth = .9; g.beginPath(); g.moveTo(fx - 3.4, by - 2.2); g.lineTo(fx, by + .6); g.lineTo(fx + 3.4, by - 2.2); g.stroke(); } } }
+  });
+  // viñeta suave
+  const v = g.createRadialGradient(160, 90, 70, 160, 90, 210); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,8,30,.38)'); g.fillStyle = v; g.fillRect(0, 0, 320, 180);
 }
 
 </script>
